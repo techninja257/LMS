@@ -26,6 +26,7 @@ const CreateCourse = () => {
     isPublished: false,
     thumbnail: null,
     language: 'English',
+    duration: '', // Added duration
     prerequisites: [''],
     learningObjectives: [''],
     modules: [
@@ -66,6 +67,10 @@ const CreateCourse = () => {
         then: Yup.number().oneOf([0], 'Price must be 0 for free courses')
       }),
     language: Yup.string().required('Language is required'),
+    duration: Yup.number() // Added duration validation
+      .required('Duration is required')
+      .min(1, 'Duration must be at least 1 week')
+      .integer('Duration must be a whole number'),
     prerequisites: Yup.array().of(Yup.string().required('Prerequisite cannot be empty')),
     learningObjectives: Yup.array().of(Yup.string().required('Learning objective cannot be empty')),
     modules: Yup.array().of(
@@ -264,6 +269,21 @@ const CreateCourse = () => {
                     placeholder="e.g., English"
                   />
                   <ErrorMessage name="language" component="div" className="mt-1 text-sm text-red-600" />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Duration (weeks) *
+                  </label>
+                  <Field
+                    type="number"
+                    name="duration"
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                    placeholder="e.g., 4"
+                    min="1"
+                    step="1"
+                  />
+                  <ErrorMessage name="duration" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div>
