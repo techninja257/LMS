@@ -1,4 +1,5 @@
 import api from './auth'; // Import the configured axios instance
+import axios from 'axios';
 
 // Get all courses
 export const getAllCourses = async (query = {}) => {
@@ -31,9 +32,20 @@ export const getCourse = async (courseId) => {
 // Create course (instructor, admin)
 export const createCourse = async (courseData) => {
   try {
-    const response = await api.post('/api/courses', courseData);
+    const response = await api.post('/api/courses', courseData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data.data;
   } catch (error) {
+    // Extract validation errors if available
+    if (error.response?.data?.errors) {
+      const errorMessages = Object.values(error.response.data.errors)
+        .map(err => err.message)
+        .join(', ');
+      throw new Error(errorMessages);
+    }
     throw error;
   }
 };

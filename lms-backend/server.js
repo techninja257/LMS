@@ -5,9 +5,14 @@ const dotenv = require('dotenv');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const multer = require('multer');
 
 // Load environment variables
 dotenv.config();
+
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
@@ -45,10 +50,10 @@ app.use(morgan('dev'));
 // Set static folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Mount routers
+// Mount routers with multer for routes that need file uploads
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/courses', courseRoutes);
+app.use('/api/courses', upload.single('thumbnail'), courseRoutes);
 app.use('/api/lessons', lessonRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/notifications', notificationRoutes);

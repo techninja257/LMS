@@ -26,7 +26,7 @@ const CreateCourse = () => {
     isPublished: false,
     thumbnail: null,
     language: 'English',
-    duration: '', // Added duration
+    duration: '',
     prerequisites: [''],
     learningObjectives: [''],
     modules: [
@@ -67,7 +67,7 @@ const CreateCourse = () => {
         then: Yup.number().oneOf([0], 'Price must be 0 for free courses')
       }),
     language: Yup.string().required('Language is required'),
-    duration: Yup.number() // Added duration validation
+    duration: Yup.number()
       .required('Duration is required')
       .min(1, 'Duration must be at least 1 week')
       .integer('Duration must be a whole number'),
@@ -108,6 +108,9 @@ const CreateCourse = () => {
       // Create FormData for file upload
       const formData = new FormData();
       
+      // Log values for debugging
+      console.log('Form values:', values);
+      
       // Add all text fields
       Object.keys(values).forEach(key => {
         if (key !== 'thumbnail' && key !== 'modules' && key !== 'prerequisites' && key !== 'learningObjectives') {
@@ -125,13 +128,18 @@ const CreateCourse = () => {
         formData.append('thumbnail', values.thumbnail);
       }
       
+      // Log FormData entries for debugging
+      for (let [key, value] of formData.entries()) {
+        console.log(`FormData: ${key} = ${value}`);
+      }
+      
       // Call API to create course
       const response = await createCourse(formData);
       
       // Redirect to the course edit page or instructor dashboard
-      navigate(`/instructor/courses/${response.data._id}/edit`);
+      navigate(`/instructor/courses/${response._id}/edit`);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create course. Please try again.');
+      setError(err.message || 'Failed to create course. Please try again.');
       console.error('Error creating course:', err);
     } finally {
       setIsSubmitting(false);
@@ -141,14 +149,9 @@ const CreateCourse = () => {
   const categoryOptions = [
     'Web Development',
     'Mobile Development',
+    'UI/UX',
     'Data Science',
-    'Machine Learning',
-    'DevOps',
     'Business',
-    'Marketing',
-    'Design',
-    'Photography',
-    'Music',
     'Other'
   ];
 
@@ -236,7 +239,7 @@ const CreateCourse = () => {
                   >
                     <option value="">Select a category</option>
                     {categoryOptions.map(category => (
-                      <option key={category} value={category.toLowerCase()}>{category}</option>
+                      <option key={category} value={category}>{category}</option>
                     ))}
                   </Field>
                   <ErrorMessage name="category" component="div" className="mt-1 text-sm text-red-600" />
@@ -306,52 +309,7 @@ const CreateCourse = () => {
                   </div>
                   <ErrorMessage name="price" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
-                
-                <div className="flex items-center space-x-6 md:col-span-2">
-                  <div className="flex items-center">
-                    <Field
-                      type="checkbox"
-                      name="isFree"
-                      id="isFree"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                      onChange={(e) => {
-                        const checked = e.target.checked;
-                        setFieldValue('isFree', checked);
-                        if (checked) {
-                          setFieldValue('price', 0);
-                        }
-                      }}
-                    />
-                    <label htmlFor="isFree" className="ml-2 block text-sm text-gray-700">
-                      Free Course
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Field
-                      type="checkbox"
-                      name="isPremium"
-                      id="isPremium"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isPremium" className="ml-2 block text-sm text-gray-700">
-                      Premium Course
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <Field
-                      type="checkbox"
-                      name="isPublished"
-                      id="isPublished"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
-                      Publish immediately
-                    </label>
-                  </div>
-                </div>
-                
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Course Thumbnail

@@ -37,17 +37,50 @@ router.route('/:id')
 // Protected routes
 router.use(protect);
 
-// Enrollment routes
+// Temporary POST handler for debugging
+router.route('/')
+  .post(authorize('instructor', 'admin'), async (req, res, next) => {
+    try {
+      // Log received data
+      console.log('Received body:', req.body);
+      console.log('Received file:', req.file);
+
+      // Construct course data
+      const courseData = {
+        title: req.body.title,
+        description: req.body.description,
+        summary: req.body.shortDescription || '',
+        category: req.body.category, // Ensure this matches schema's enum (e.g., 'Web Development')
+        level: req.body.level.charAt(0).toUpperCase() + req.body.level.slice(1), // Capitalize level
+        duration: Number(req.body.duration),
+        price: Number(req.body.price) || 0,
+        isPublished: req.body.isPublished === 'true' || false,
+        author: req.user._id, // From protect middleware
+        coverImage: req.file ? 'uploaded-image.jpg' : 'default-course.jpg', // Placeholder
+        language: req.body.language || 'English',
+        isFree: req.body.isFree === 'true' || false,
+        isPremium: req.body.isPremium === 'true' || false,
+        prerequisites: req.body.prerequisites ? JSON.parse(req.body.prerequisites) : [],
+        learningObjectives: req.body.learningObjectives ? JSON.parse(req.body.learningObjectives) : [],
+        modules: req.body.modules ? JSON.parse(req.body.modules) : []
+      };
+
+      // Log course data before saving
+      console.log('Course data to save:', courseData);
+
+      const course = await Course.create(courseData);
+      res.status(201).json({ success: true, data: course });
+    } catch (error) {
+      next(error);
+    }
+  });
+
 router.route('/enrolled')
   .get(getEnrolledCourses);
 
 router.route('/:id/enroll')
   .post(enrollCourse)
   .delete(unenrollCourse);
-
-// Course creation/management routes (instructors and admins only)
-router.route('/')
-  .post(authorize('instructor', 'admin'), createCourse);
 
 router.route('/:id')
   .put(authorize('instructor', 'admin'), updateCourse)
@@ -60,7 +93,6 @@ router.route('/:id/photo')
     uploadCourseImage
   );
 
-// Admin only routes
 router.route('/:id/approve')
   .put(authorize('admin'), approveCourse);
 

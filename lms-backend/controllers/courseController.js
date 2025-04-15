@@ -39,9 +39,7 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
   }
 });
 
-// @desc    Get single course
-// @route   GET /api/courses/:id
-// @access  Public
+// Fix for courseController.js - getCourse function
 exports.getCourse = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id)
     .populate('author', 'firstName lastName profileImage')
@@ -52,13 +50,18 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
   }
 
-  // If course is not published and user is not admin/instructor/author, restrict access
-  if (!course.isPublished && 
-      (!req.user || 
-       (req.user.role !== 'admin' && 
-        req.user.role !== 'instructor' && 
-        req.user.id !== course.author._id.toString()))) {
-    return next(new ErrorResponse(`Course not published or you're not authorized to access this course`, 403));
+  // Modified condition: Allow course author to access their own unpublished course
+  if (!course.isPublished) {
+    // Check if user is logged in
+    if (!req.user) {
+      return next(new ErrorResponse(`Course not published`, 403));
+    }
+    
+    // Check if user is the author, admin, or instructor
+    const authorId = course.author._id ? course.author._id.toString() : course.author.toString();
+    if (req.user.role !== 'admin' && req.user.role !== 'instructor' && req.user.id !== authorId) {
+      return next(new ErrorResponse(`Course not published or you're not authorized to access this course`, 403));
+    }
   }
 
   res.status(200).json({

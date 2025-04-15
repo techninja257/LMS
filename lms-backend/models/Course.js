@@ -17,7 +17,8 @@ const CourseSchema = new mongoose.Schema(
     },
     summary: {
       type: String,
-      maxlength: [500, 'Summary cannot be more than 500 characters']
+      maxlength: [500, 'Summary cannot be more than 500 characters'],
+      required: false
     },
     category: {
       type: String,
@@ -38,7 +39,8 @@ const CourseSchema = new mongoose.Schema(
     },
     coverImage: {
       type: String,
-      default: 'default-course.jpg'
+      default: 'default-course.jpg',
+      required: false
     },
     duration: {
       type: Number,
@@ -67,7 +69,70 @@ const CourseSchema = new mongoose.Schema(
     },
     price: {
       type: Number,
-      default: 0
+      default: 0,
+      required: false
+    },
+    language: {
+      type: String,
+      default: 'English',
+      required: false
+    },
+    isFree: {
+      type: Boolean,
+      default: false,
+      required: false
+    },
+    isPremium: {
+      type: Boolean,
+      default: false,
+      required: false
+    },
+    prerequisites: {
+      type: [String],
+      default: [],
+      required: false
+    },
+    learningObjectives: {
+      type: [String],
+      default: [],
+      required: false
+    },
+    modules: {
+      type: [{
+        title: {
+          type: String,
+          required: true
+        },
+        description: {
+          type: String,
+          required: false
+        },
+        lessons: [{
+          title: {
+            type: String,
+            required: true
+          },
+          type: {
+            type: String,
+            enum: ['video', 'text', 'quiz', 'assignment'],
+            required: true
+          },
+          content: {
+            type: String,
+            required: false
+          },
+          duration: {
+            type: Number,
+            default: 0
+          },
+          isPreview: {
+            type: Boolean,
+            default: false
+          }
+        }]
+      }],
+      default: [],
+      required: false
     },
     createdAt: {
       type: Date,
