@@ -34,6 +34,12 @@ router.route('/')
 router.route('/:id')
   .get(getCourse);
 
+router.route('/:id/submit')
+.put(protect, authorize('instructor'), submitCourseForApproval);
+
+router.route('/:id/publish')
+.put(protect, authorize('instructor', 'admin'), publishCourse);
+
 // Protected routes
 router.use(protect);
 

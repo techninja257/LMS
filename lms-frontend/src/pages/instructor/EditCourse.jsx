@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
-import { getCourse, updateCourse, uploadCourseImage } from '../../api/courses';
+import { getCourse, updateCourse, uploadCourseImage, submitCourseForApproval, publishCourse } from '../../api/courses';
 
 const EditCourse = () => {
   const { courseId } = useParams();
@@ -17,6 +17,11 @@ const EditCourse = () => {
   const [error, setError] = useState('');
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [initialValues, setInitialValues] = useState(null);
+  const [courseStatus, setCourseStatus] = useState({
+    isApproved: false,
+    isPublished: false,
+    requiresApproval: false,
+  });
   
   useEffect(() => {
     const fetchCourse = async () => {
@@ -24,8 +29,8 @@ const EditCourse = () => {
         setIsLoading(true);
         const courseData = await getCourse(courseId);
         
-        if (courseData.coverImage) {
-          setThumbnailPreview(courseData.coverImage);
+        if (courseData.thumbnailImage) {
+          setThumbnailPreview(courseData.thumbnailImage);
         }
         
         const formData = {
@@ -71,6 +76,11 @@ const EditCourse = () => {
         };
         
         setInitialValues(formData);
+        setCourseStatus({
+          isApproved: courseData.isApproved || false,
+          isPublished: courseData.isPublished || false,
+          requiresApproval: courseData.requiresApproval || false,
+        });
         setIsLoading(false);
       } catch (err) {
         console.error('Error fetching course:', err);
@@ -720,6 +730,57 @@ const EditCourse = () => {
                   )}
                 </FieldArray>
               </Card>
+              
+              {/* Course Status */}
+              <div className="flex justify-between items-center p-4 bg-gray-50 rounded-lg mb-6">
+                <div>
+                  <h3 className="text-lg font-medium">Course Status</h3>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center">
+                      <span className="mr-2 text-sm">Approval Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        courseStatus.isApproved 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {courseStatus.isApproved ? 'Approved' : 'Pending Approval'}
+                      </span>
+                    </div>
+                    <div className="flex items-center">
+                      <span className="mr-2 text-sm">Publication Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        courseStatus.isPublished 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {courseStatus.isPublished ? 'Published' : 'Draft'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  {!courseStatus.isApproved && !courseStatus.requiresApproval && (
+                    <Button
+                      type="button"
+                      variant="warning"
+                      onClick={() => submitCourseForApproval(courseId)}
+                    >
+                      Submit for Approval
+                    </Button>
+                  )}
+                  
+                  {courseStatus.isApproved && (
+                    <Button
+                      type="button"
+                      variant={courseStatus.isPublished ? "danger" : "success"}
+                      onClick={() => publishCourse(courseId, !courseStatus.isPublished)}
+                    >
+                      {courseStatus.isPublished ? 'Unpublish Course' : 'Publish Course'}
+                    </Button>
+                  )}
+                </div>
+              </div>
               
               {/* Submission Buttons */}
               <div className="flex justify-end space-x-4">

@@ -1,10 +1,8 @@
 import api from './auth'; // Import the configured axios instance
-import axios from 'axios';
 
 // Get all courses
 export const getAllCourses = async (query = {}) => {
   try {
-    // Convert query object to URL parameters
     const params = new URLSearchParams();
     Object.entries(query).forEach(([key, value]) => {
       if (value !== undefined && value !== null && value !== '') {
@@ -33,13 +31,10 @@ export const getCourse = async (courseId) => {
 export const createCourse = async (courseData) => {
   try {
     const response = await api.post('/api/courses', courseData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data.data;
   } catch (error) {
-    // Extract validation errors if available
     if (error.response?.data?.errors) {
       const errorMessages = Object.values(error.response.data.errors)
         .map(err => err.message)
@@ -77,9 +72,7 @@ export const uploadCourseImage = async (courseId, imageFile) => {
     formData.append('file', imageFile);
 
     const response = await api.put(`/api/courses/${courseId}/photo`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
+      headers: { 'Content-Type': 'multipart/form-data' }
     });
     return response.data.data;
   } catch (error) {
@@ -131,6 +124,26 @@ export const approveCourse = async (courseId) => {
 export const generateCertificate = async (courseId) => {
   try {
     const response = await api.post(`/api/courses/${courseId}/certificate`);
+    return response.data.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Submit course for approval
+export const submitCourseForApproval = async (courseId) => {
+  try {
+    const response = await api.put(`/api/courses/${courseId}/submit`);
+    return response.data.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Publish/unpublish course
+export const publishCourse = async (courseId, isPublished) => {
+  try {
+    const response = await api.put(`/api/courses/${courseId}/publish`, { isPublished });
     return response.data.data;
   } catch (error) {
     throw error;
