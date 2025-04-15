@@ -35,7 +35,7 @@ const CourseSchema = new mongoose.Schema(
     level: {
       type: String,
       required: [true, 'Please add a difficulty level'],
-      enum: ['Beginner', 'Intermediate', 'Advanced']
+      enum: ['Beginner', 'Intermediate', 'Advanced', 'beginner', 'intermediate', 'advanced']
     },
     coverImage: {
       type: String,
