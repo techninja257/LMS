@@ -17,7 +17,6 @@ exports.protect = async (req, res, next) => {
     req.headers.authorization &&
     req.headers.authorization.startsWith('Bearer')
   ) {
-    // Get token from Bearer token in header
     token = req.headers.authorization.split(' ')[1];
   } 
   // If no token found in headers, check for JWT cookie
@@ -27,22 +26,28 @@ exports.protect = async (req, res, next) => {
 
   // Make sure token exists
   if (!token) {
+    console.error('No token provided');
     return next(new ErrorResponse('Not authorized to access this route', 401));
   }
 
   try {
     // Verify token
+    console.log('Verifying token:', token.slice(0, 20) + '...');
     const decoded = jwt.verify(token, config.jwt.secret);
+    console.log('Decoded token:', decoded);
 
     // Add user to request object
     req.user = await User.findById(decoded.id);
 
     if (!req.user) {
+      console.error(`User not found: ${decoded.id}`);
       return next(new ErrorResponse('User not found', 404));
     }
 
+    console.log('Authenticated user:', { id: req.user.id, role: req.user.role });
     next();
   } catch (err) {
+    console.error('Token verification failed:', err.message);
     return next(new ErrorResponse('Not authorized to access this route', 401));
   }
 };
@@ -55,6 +60,7 @@ exports.protect = async (req, res, next) => {
  */
 exports.accountActive = async (req, res, next) => {
   if (!req.user.isActive) {
+    console.error(`Inactive account: ${req.user.id}`);
     return next(new ErrorResponse('Your account is currently inactive', 403));
   }
   

@@ -15,6 +15,8 @@ const EditCourse = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
   const [initialValues, setInitialValues] = useState(null);
   const [courseStatus, setCourseStatus] = useState({
@@ -22,34 +24,47 @@ const EditCourse = () => {
     isPublished: false,
     requiresApproval: false,
   });
-  
-  useEffect(() => {
-    const fetchCourse = async () => {
-      try {
-        setIsLoading(true);
-        const courseData = await getCourse(courseId);
-        
-        if (courseData.thumbnailImage) {
-          setThumbnailPreview(courseData.thumbnailImage);
-        }
-        
-        const formData = {
-          title: courseData.title || '',
-          shortDescription: courseData.summary || courseData.shortDescription || '',
-          description: courseData.description || '',
-          category: courseData.category || '',
-          level: courseData.level?.toLowerCase() || 'beginner',
-          price: courseData.price || 0,
-          isFree: courseData.price === 0,
-          isPremium: courseData.isPremium || false,
-          isPublished: courseData.isPublished || false,
-          thumbnail: null,
-          language: courseData.language || 'English',
-          prerequisites: courseData.prerequisites?.length ? courseData.prerequisites : [''],
-          learningObjectives: courseData.learningObjectives?.length ? courseData.learningObjectives : [''],
-          modules: courseData.modules?.length ? courseData.modules.map(module => ({
-            ...module,
-            lessons: module.lessons?.length ? module.lessons : [
+
+  // Define fetchCourse in component scope
+  const fetchCourse = async () => {
+    try {
+      setIsLoading(true);
+      const courseData = await getCourse(courseId);
+
+      if (courseData.thumbnailImage) {
+        setThumbnailPreview(courseData.thumbnailImage);
+      }
+
+      const formData = {
+        title: courseData.title || '',
+        shortDescription: courseData.summary || courseData.shortDescription || '',
+        description: courseData.description || '',
+        category: courseData.category || '',
+        level: courseData.level?.toLowerCase() || 'beginner',
+        price: courseData.price || 0,
+        isFree: courseData.price === 0,
+        isPremium: courseData.isPremium || false,
+        isPublished: courseData.isPublished || false,
+        thumbnail: null,
+        language: courseData.language || 'English',
+        prerequisites: courseData.prerequisites?.length ? courseData.prerequisites : [''],
+        learningObjectives: courseData.learningObjectives?.length ? courseData.learningObjectives : [''],
+        modules: courseData.modules?.length ? courseData.modules.map(module => ({
+          ...module,
+          lessons: module.lessons?.length ? module.lessons : [
+            {
+              title: '',
+              type: 'video',
+              content: '',
+              duration: 0,
+              isPreview: false
+            }
+          ]
+        })) : [
+          {
+            title: '',
+            description: '',
+            lessons: [
               {
                 title: '',
                 type: 'video',
@@ -58,37 +73,33 @@ const EditCourse = () => {
                 isPreview: false
               }
             ]
-          })) : [
-            {
-              title: '',
-              description: '',
-              lessons: [
-                {
-                  title: '',
-                  type: 'video',
-                  content: '',
-                  duration: 0,
-                  isPreview: false
-                }
-              ]
-            }
-          ]
-        };
-        
-        setInitialValues(formData);
-        setCourseStatus({
-          isApproved: courseData.isApproved || false,
-          isPublished: courseData.isPublished || false,
-          requiresApproval: courseData.requiresApproval || false,
-        });
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Error fetching course:', err);
-        setError(err.response?.data?.message || 'Failed to load course. Please try again.');
-        setIsLoading(false);
-      }
-    };
-    
+          }
+        ]
+      };
+
+      setInitialValues(formData);
+      setCourseStatus({
+        isApproved: courseData.isApproved || false,
+        isPublished: courseData.isPublished || false,
+        requiresApproval: courseData.requiresApproval || false,
+      });
+      setIsLoading(false);
+    } catch (err) {
+      console.error('Error fetching course:', err);
+      setError(
+        err.response?.data?.message || 'Failed to load course. Please try again.'
+      );
+      setDebugInfo({
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        courseId,
+        token: localStorage.getItem('token')?.slice(0, 20) + '...'
+      });
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCourse();
   }, [courseId]);
 
@@ -136,7 +147,7 @@ const EditCourse = () => {
     const file = event.currentTarget.files[0];
     if (file) {
       setFieldValue('thumbnail', file);
-      
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setThumbnailPreview(reader.result);
@@ -148,21 +159,33 @@ const EditCourse = () => {
   const handleSubmit = async (values) => {
     setIsSubmitting(true);
     setError('');
-    
+
     try {
       if (values.thumbnail) {
         await uploadCourseImage(courseId, values.thumbnail);
       }
-      
+
       const { thumbnail, ...updateData } = values;
-      
-      await updateCourse(courseId, updateData);
-      
+
+      const updatedCourse = await updateCourse(courseId, updateData);
+
+      setCourseStatus({
+        isApproved: updatedCourse.isApproved,
+        isPublished: updatedCourse.isPublished,
+        requiresApproval: updatedCourse.requiresApproval,
+      });
+
       toast.success('Course updated successfully!');
-      
+
       navigate('/instructor/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to update course. Please try again.');
+      setDebugInfo({
+        status: err.response?.status,
+        message: err.response?.data?.message,
+        courseId,
+        token: localStorage.getItem('token')?.slice(0, 20) + '...'
+      });
       console.error('Error updating course:', err);
       toast.error('Failed to update course. Please try again.');
     } finally {
@@ -173,14 +196,9 @@ const EditCourse = () => {
   const categoryOptions = [
     'Web Development',
     'Mobile Development',
+    'UI/UX',
     'Data Science',
-    'Machine Learning',
-    'DevOps',
     'Business',
-    'Marketing',
-    'Design',
-    'Photography',
-    'Music',
     'Other'
   ];
 
@@ -230,14 +248,40 @@ const EditCourse = () => {
             <span className="block sm:inline">{error}</span>
           </div>
           
-          <div className="flex justify-center">
+          <div className="flex justify-center space-x-4">
             <Button
               variant="primary"
+              onClick={() => {
+                setError('');
+                setDebugInfo(null);
+                setIsLoading(true);
+                fetchCourse(); // Now accessible
+              }}
+            >
+              Retry
+            </Button>
+            <Button
+              variant="outline"
               onClick={() => navigate('/instructor/dashboard')}
             >
               Return to Dashboard
             </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setShowDebug(!showDebug)}
+            >
+              {showDebug ? 'Hide Debug Info' : 'Show Debug Info'}
+            </Button>
           </div>
+          
+          {showDebug && debugInfo && (
+            <div className="mt-4 p-4 bg-gray-100 rounded-md">
+              <h3 className="text-sm font-medium text-gray-900">Debug Information</h3>
+              <pre className="mt-2 text-xs text-gray-700">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
+          )}
         </Card>
       </div>
     );
@@ -329,7 +373,7 @@ const EditCourse = () => {
                     >
                       <option value="">Select a category</option>
                       {categoryOptions.map(category => (
-                        <option key={category} value={category.toLowerCase()}>{category}</option>
+                        <option key={category} value={category}>{category}</option>
                       ))}
                     </Field>
                     <ErrorMessage name="category" component="div" className="mt-1 text-sm text-red-600" />
@@ -440,7 +484,7 @@ const EditCourse = () => {
                           <img
                             src={thumbnailPreview}
                             alt="Thumbnail preview"
-                            className="h-32 w-56 object-cover rounded-md"
+                            className="h-32 w-56 as object-cover rounded-md"
                           />
                         ) : (
                           <div className="h-32 w-56 rounded-md bg-gray-100 flex items-center justify-center text-gray-500">
@@ -764,7 +808,19 @@ const EditCourse = () => {
                     <Button
                       type="button"
                       variant="warning"
-                      onClick={() => submitCourseForApproval(courseId)}
+                      onClick={async () => {
+                        try {
+                          const updatedCourse = await submitCourseForApproval(courseId);
+                          setCourseStatus({
+                            isApproved: updatedCourse.isApproved,
+                            isPublished: updatedCourse.isPublished,
+                            requiresApproval: updatedCourse.requiresApproval,
+                          });
+                          toast.success('Course submitted for approval!');
+                        } catch (err) {
+                          toast.error('Failed to submit course for approval.');
+                        }
+                      }}
                     >
                       Submit for Approval
                     </Button>
@@ -774,7 +830,20 @@ const EditCourse = () => {
                     <Button
                       type="button"
                       variant={courseStatus.isPublished ? "danger" : "success"}
-                      onClick={() => publishCourse(courseId, !courseStatus.isPublished)}
+                      onClick={async () => {
+                        try {
+                          const updatedCourse = await publishCourse(courseId, !courseStatus.isPublished);
+                          setCourseStatus({
+                            isApproved: updatedCourse.isApproved,
+                            isPublished: updatedCourse.isPublished,
+                            requiresApproval: updatedCourse.requiresApproval,
+                          });
+                          setFieldValue('isPublished', updatedCourse.isPublished);
+                          toast.success(`Course ${updatedCourse.isPublished ? 'published' : 'unpublished'} successfully!`);
+                        } catch (err) {
+                          toast.error('Failed to update publish status.');
+                        }
+                      }}
                     >
                       {courseStatus.isPublished ? 'Unpublish Course' : 'Publish Course'}
                     </Button>
