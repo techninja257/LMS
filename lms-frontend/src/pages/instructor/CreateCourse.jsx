@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
 import { FaPlus, FaTrash, FaImage, FaInfoCircle } from 'react-icons/fa';
-
+import { toast } from 'react-toastify';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { createCourse } from '../../api/courses';
@@ -100,51 +100,57 @@ const CreateCourse = () => {
     }
   };
 
-  const handleSubmit = async (values) => {
-    setIsSubmitting(true);
-    setError('');
+  // Update in handleSubmit function of CreateCourse.jsx
+  // Update in handleSubmit function of CreateCourse.jsx
+
+const handleSubmit = async (values) => {
+  setIsSubmitting(true);
+  setError('');
+  
+  try {
+    // Create FormData for file upload
+    const formData = new FormData();
     
-    try {
-      // Create FormData for file upload
-      const formData = new FormData();
-      
-      // Log values for debugging
-      console.log('Form values:', values);
-      
-      // Add all text fields
-      Object.keys(values).forEach(key => {
-        if (key !== 'thumbnail' && key !== 'modules' && key !== 'prerequisites' && key !== 'learningObjectives') {
-          formData.append(key, values[key]);
-        }
-      });
-      
-      // Add arrays as JSON strings
-      formData.append('modules', JSON.stringify(values.modules));
-      formData.append('prerequisites', JSON.stringify(values.prerequisites));
-      formData.append('learningObjectives', JSON.stringify(values.learningObjectives));
-      
-      // Add thumbnail if exists
-      if (values.thumbnail) {
-        formData.append('thumbnail', values.thumbnail);
+    // Log values for debugging
+    console.log('Form values:', values);
+    
+    // Add all text fields
+    Object.keys(values).forEach(key => {
+      if (key !== 'thumbnail' && key !== 'modules' && key !== 'prerequisites' && key !== 'learningObjectives') {
+        formData.append(key, values[key]);
       }
-      
-      // Log FormData entries for debugging
-      for (let [key, value] of formData.entries()) {
-        console.log(`FormData: ${key} = ${value}`);
-      }
-      
-      // Call API to create course
-      const response = await createCourse(formData);
-      
-      // Redirect to the course edit page or instructor dashboard
-      navigate(`/instructor/courses/${response._id}/edit`);
-    } catch (err) {
-      setError(err.message || 'Failed to create course. Please try again.');
-      console.error('Error creating course:', err);
-    } finally {
-      setIsSubmitting(false);
+    });
+    
+    // Add arrays as JSON strings
+    formData.append('modules', JSON.stringify(values.modules));
+    formData.append('prerequisites', JSON.stringify(values.prerequisites));
+    formData.append('learningObjectives', JSON.stringify(values.learningObjectives));
+    
+    // Add thumbnail if exists
+    if (values.thumbnail) {
+      formData.append('thumbnail', values.thumbnail);
     }
-  };
+    
+    // Log FormData entries for debugging
+    for (let [key, value] of formData.entries()) {
+      console.log(`FormData: ${key} = ${value}`);
+    }
+    
+    // Call API to create course
+    const response = await createCourse(formData);
+    
+    // Success message
+    toast.success('Course created successfully!');
+    
+    // Redirect to instructor courses (instead of directly to edit page)
+    navigate('/instructor/courses');
+  } catch (err) {
+    setError(err.message || 'Failed to create course. Please try again.');
+    console.error('Error creating course:', err);
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   const categoryOptions = [
     'Web Development',

@@ -198,6 +198,16 @@ exports.publishCourse = asyncHandler(async (req, res, next) => {
 // @desc    Enroll in a course
 // @route   POST /api/courses/:id/enroll
 // @access  Private
+// Updated enrollCourse controller function
+
+// @desc    Enroll in a course
+// @route   POST /api/courses/:id/enroll
+// @access  Private
+// Updated enrollCourse controller function
+
+// @desc    Enroll in a course
+// @route   POST /api/courses/:id/enroll
+// @access  Private
 exports.enrollCourse = asyncHandler(async (req, res, next) => {
   const course = await Course.findById(req.params.id);
 
@@ -205,6 +215,17 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Course not found', 404));
   }
 
+  // Prevent instructors and admins from enrolling in courses
+  if (req.user.role === 'instructor' || req.user.role === 'admin') {
+    return next(new ErrorResponse('Instructors and admins cannot enroll in courses', 403));
+  }
+
+  // Check if course author is trying to enroll in their own course
+  if (course.author.toString() === req.user.id) {
+    return next(new ErrorResponse('You cannot enroll in your own course', 403));
+  }
+
+  // Check if already enrolled
   if (!course.enrolledUsers.includes(req.user.id)) {
     course.enrolledUsers.push(req.user.id);
     await course.save();
@@ -212,6 +233,7 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({ success: true, data: course });
 });
+
 
 // @desc    Unenroll from a course
 // @route   DELETE /api/courses/:id/enroll

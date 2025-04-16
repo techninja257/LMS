@@ -35,6 +35,7 @@ import UserCreate from './pages/admin/UserCreate';
 
 // Instructor Pages
 import InstructorDashboard from './pages/instructor/Dashboard';
+import InstructorCourses from './pages/instructor/InstructorCourses'; // Added this import
 import CreateCourse from './pages/instructor/CreateCourse';
 import EditCourse from './pages/instructor/EditCourse';
 import ManageLessons from './pages/instructor/ManageLessons';
@@ -96,6 +97,7 @@ function App() {
 
             {/* Instructor Routes */}
             <Route path="/instructor/dashboard" element={<InstructorRoute><InstructorDashboard /></InstructorRoute>} />
+            <Route path="/instructor/courses" element={<InstructorRoute><InstructorCourses /></InstructorRoute>} /> {/* Added this route */}
             <Route path="/instructor/courses/create" element={<InstructorRoute><CreateCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/edit" element={<InstructorRoute><EditCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons" element={<InstructorRoute><ManageLessons /></InstructorRoute>} />
