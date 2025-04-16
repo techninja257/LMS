@@ -1,3 +1,4 @@
+// src/pages/instructor/EditCourse.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
@@ -25,16 +26,18 @@ const EditCourse = () => {
     requiresApproval: false,
   });
 
-  // Define fetchCourse in component scope
+  // Fetch course details
   const fetchCourse = async () => {
     try {
       setIsLoading(true);
       const courseData = await getCourse(courseId);
-
-      if (courseData.thumbnailImage) {
-        setThumbnailPreview(courseData.thumbnailImage);
+      
+      // Set thumbnail preview if available
+      if (courseData.coverImage) {
+        setThumbnailPreview(courseData.coverImage);
       }
 
+      // Transform API data to form structure
       const formData = {
         title: courseData.title || '',
         shortDescription: courseData.summary || courseData.shortDescription || '',
@@ -47,6 +50,7 @@ const EditCourse = () => {
         isPublished: courseData.isPublished || false,
         thumbnail: null,
         language: courseData.language || 'English',
+        duration: courseData.duration || 1,
         prerequisites: courseData.prerequisites?.length ? courseData.prerequisites : [''],
         learningObjectives: courseData.learningObjectives?.length ? courseData.learningObjectives : [''],
         modules: courseData.modules?.length ? courseData.modules.map(module => ({
@@ -87,11 +91,11 @@ const EditCourse = () => {
     } catch (err) {
       console.error('Error fetching course:', err);
       setError(
-        err.response?.data?.message || 'Failed to load course. Please try again.'
+        err.response?.data?.message || err.message || 'Failed to load course. Please try again.'
       );
       setDebugInfo({
         status: err.response?.status,
-        message: err.response?.data?.message,
+        message: err.response?.data?.message || err.message,
         courseId,
         token: localStorage.getItem('token')?.slice(0, 20) + '...'
       });
@@ -124,6 +128,10 @@ const EditCourse = () => {
         then: Yup.number().oneOf([0], 'Price must be 0 for free courses')
       }),
     language: Yup.string().required('Language is required'),
+    duration: Yup.number()
+      .required('Duration is required')
+      .min(1, 'Duration must be at least 1 week')
+      .integer('Duration must be a whole number'),
     prerequisites: Yup.array().of(
       Yup.string().required('Prerequisite cannot be empty')
     ),
@@ -161,14 +169,18 @@ const EditCourse = () => {
     setError('');
 
     try {
+      // If there's a new thumbnail, upload it first
       if (values.thumbnail) {
         await uploadCourseImage(courseId, values.thumbnail);
       }
 
+      // Remove thumbnail from values to avoid sending file in JSON
       const { thumbnail, ...updateData } = values;
 
+      // Update the course with the form data
       const updatedCourse = await updateCourse(courseId, updateData);
 
+      // Update course status state
       setCourseStatus({
         isApproved: updatedCourse.isApproved,
         isPublished: updatedCourse.isPublished,
@@ -176,13 +188,12 @@ const EditCourse = () => {
       });
 
       toast.success('Course updated successfully!');
-
-      navigate('/instructor/dashboard');
+      navigate('/instructor/courses');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to update course. Please try again.');
+      setError(err.response?.data?.message || err.message || 'Failed to update course. Please try again.');
       setDebugInfo({
         status: err.response?.status,
-        message: err.response?.data?.message,
+        message: err.response?.data?.message || err.message,
         courseId,
         token: localStorage.getItem('token')?.slice(0, 20) + '...'
       });
@@ -207,13 +218,13 @@ const EditCourse = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
           <Link 
-            to="/instructor/dashboard"
+            to="/instructor/courses"
             className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
           >
             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Dashboard
+            Back to Courses
           </Link>
           
           <h1 className="text-2xl font-bold text-gray-900">Edit Course</h1>
@@ -231,13 +242,13 @@ const EditCourse = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
           <Link 
-            to="/instructor/dashboard"
+            to="/instructor/courses"
             className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
           >
             <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Dashboard
+            Back to Courses
           </Link>
           
           <h1 className="text-2xl font-bold text-gray-900">Edit Course</h1>
@@ -255,16 +266,16 @@ const EditCourse = () => {
                 setError('');
                 setDebugInfo(null);
                 setIsLoading(true);
-                fetchCourse(); // Now accessible
+                fetchCourse();
               }}
             >
               Retry
             </Button>
             <Button
               variant="outline"
-              onClick={() => navigate('/instructor/dashboard')}
+              onClick={() => navigate('/instructor/courses')}
             >
-              Return to Dashboard
+              Return to Courses
             </Button>
             <Button
               variant="secondary"
@@ -277,7 +288,7 @@ const EditCourse = () => {
           {showDebug && debugInfo && (
             <div className="mt-4 p-4 bg-gray-100 rounded-md">
               <h3 className="text-sm font-medium text-gray-900">Debug Information</h3>
-              <pre className="mt-2 text-xs text-gray-700">
+              <pre className="mt-2 text-xs text-gray-700 overflow-auto">
                 {JSON.stringify(debugInfo, null, 2)}
               </pre>
             </div>
@@ -291,13 +302,13 @@ const EditCourse = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
         <Link 
-          to="/instructor/dashboard"
+          to="/instructor/courses"
           className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
         >
           <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Dashboard
+          Back to Courses
         </Link>
         
         <h1 className="text-2xl font-bold text-gray-900">Edit Course</h1>
@@ -410,6 +421,21 @@ const EditCourse = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Duration (weeks) *
+                    </label>
+                    <Field
+                      type="number"
+                      name="duration"
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                      placeholder="e.g., 4"
+                      min="1"
+                      step="1"
+                    />
+                    <ErrorMessage name="duration" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Price (USD)
                     </label>
                     <div className="mt-1 relative rounded-md shadow-sm">
@@ -484,7 +510,7 @@ const EditCourse = () => {
                           <img
                             src={thumbnailPreview}
                             alt="Thumbnail preview"
-                            className="h-32 w-56 as object-cover rounded-md"
+                            className="h-32 w-56 object-cover rounded-md"
                           />
                         ) : (
                           <div className="h-32 w-56 rounded-md bg-gray-100 flex items-center justify-center text-gray-500">
@@ -674,7 +700,7 @@ const EditCourse = () => {
                             <FieldArray name={`modules.${moduleIndex}.lessons`}>
                               {({ remove: removeLesson, push: pushLesson }) => (
                                 <div className="space-y-4">
-                                  {module.lessons && module.lessons.map((lesson, lessonIndex) => (
+                                  {module.lessons.map((lesson, lessonIndex) => (
                                     <div key={lessonIndex} className="bg-gray-50 p-3 rounded-md">
                                       <div className="flex justify-between items-center mb-3">
                                         <h5 className="text-sm font-medium">Lesson {lessonIndex + 1}</h5>
@@ -856,7 +882,7 @@ const EditCourse = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate('/instructor/dashboard')}
+                  onClick={() => navigate('/instructor/courses')}
                 >
                   Cancel
                 </Button>

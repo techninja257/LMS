@@ -1,3 +1,4 @@
+// Updated routes in App.jsx
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
@@ -35,7 +36,7 @@ import UserCreate from './pages/admin/UserCreate';
 
 // Instructor Pages
 import InstructorDashboard from './pages/instructor/Dashboard';
-import InstructorCourses from './pages/instructor/InstructorCourses'; // Added this import
+import InstructorCourses from './pages/instructor/InstructorCourses';
 import CreateCourse from './pages/instructor/CreateCourse';
 import EditCourse from './pages/instructor/EditCourse';
 import ManageLessons from './pages/instructor/ManageLessons';
@@ -95,9 +96,9 @@ function App() {
             <Route path="/admin/courses" element={<AdminRoute><ManageCourses /></AdminRoute>} />
             <Route path="/admin/course-approvals" element={<AdminRoute><CourseApprovals /></AdminRoute>} />
 
-            {/* Instructor Routes */}
+            {/* Instructor Routes - Updated path structure */}
             <Route path="/instructor/dashboard" element={<InstructorRoute><InstructorDashboard /></InstructorRoute>} />
-            <Route path="/instructor/courses" element={<InstructorRoute><InstructorCourses /></InstructorRoute>} /> {/* Added this route */}
+            <Route path="/instructor/courses" element={<InstructorRoute><InstructorCourses /></InstructorRoute>} />
             <Route path="/instructor/courses/create" element={<InstructorRoute><CreateCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/edit" element={<InstructorRoute><EditCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons" element={<InstructorRoute><ManageLessons /></InstructorRoute>} />
