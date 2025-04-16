@@ -1,4 +1,3 @@
-// src/pages/instructor/Dashboard.jsx
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllCourses } from '../../api/courses';
@@ -88,7 +87,7 @@ const InstructorDashboard = () => {
           <h1 className="text-3xl font-bold text-gray-900 mb-1">
             Instructor Dashboard
           </h1>
-          // src/pages/instructor/Dashboard.jsx (continued)
+
           <p className="text-gray-600">
             Welcome back, {user.firstName}! Manage your courses and see their performance.
           </p>
