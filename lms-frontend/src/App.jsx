@@ -1,4 +1,3 @@
-// Updated routes in App.jsx
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
@@ -33,12 +32,13 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ManageCourses from './pages/admin/ManageCourses';
 import CourseApprovals from './pages/admin/CourseApprovals';
 import UserCreate from './pages/admin/UserCreate';
+import EditCourse from './pages/admin/EditCourse'; // Added for admin course editing
 
 // Instructor Pages
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorCourses from './pages/instructor/InstructorCourses';
 import CreateCourse from './pages/instructor/CreateCourse';
-import EditCourse from './pages/instructor/EditCourse';
+import InstructorEditCourse from './pages/instructor/EditCourse';
 import ManageLessons from './pages/instructor/ManageLessons';
 import CreateLesson from './pages/instructor/CreateLesson';
 import EditLesson from './pages/instructor/EditLesson';
@@ -94,13 +94,14 @@ function App() {
             <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
             <Route path="/admin/users/create" element={<AdminRoute><UserCreate /></AdminRoute>} />
             <Route path="/admin/courses" element={<AdminRoute><ManageCourses /></AdminRoute>} />
+            <Route path="/admin/courses/:courseId/edit" element={<AdminRoute><EditCourse /></AdminRoute>} /> {/* Added */}
             <Route path="/admin/course-approvals" element={<AdminRoute><CourseApprovals /></AdminRoute>} />
 
-            {/* Instructor Routes - Updated path structure */}
+            {/* Instructor Routes */}
             <Route path="/instructor/dashboard" element={<InstructorRoute><InstructorDashboard /></InstructorRoute>} />
             <Route path="/instructor/courses" element={<InstructorRoute><InstructorCourses /></InstructorRoute>} />
             <Route path="/instructor/courses/create" element={<InstructorRoute><CreateCourse /></InstructorRoute>} />
-            <Route path="/instructor/courses/:courseId/edit" element={<InstructorRoute><EditCourse /></InstructorRoute>} />
+            <Route path="/instructor/courses/:courseId/edit" element={<InstructorRoute><InstructorEditCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons" element={<InstructorRoute><ManageLessons /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons/create" element={<InstructorRoute><CreateLesson /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons/:lessonId/edit" element={<InstructorRoute><EditLesson /></InstructorRoute>} />

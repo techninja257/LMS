@@ -28,7 +28,7 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
     }
     return true;
   });
-
+  
   res.status(200).json({
     success: true,
     count: validCourses.length,

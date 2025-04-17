@@ -1,4 +1,4 @@
-// src/pages/CourseDetail.jsx
+// src/pages/CourseDetails.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -32,7 +32,11 @@ const CourseDetail = () => {
       setCourse(courseData);
     } catch (err) {
       console.error('Error fetching course:', err);
-      setError('Failed to load course details. Please try again later.');
+      setError(
+        err.response?.status === 404
+          ? 'Course not found. It may be unpublished or deleted.'
+          : 'Failed to load course details. Please try again later.'
+      );
     } finally {
       setIsLoading(false);
     }
@@ -64,15 +68,16 @@ const CourseDetail = () => {
                   (typeof course.author === 'object' ? 
                    course.author._id === user.id : course.author === user.id);
                    
-  // Check if user is an instructor/admin but not the author
-  const isInstructorOrAdmin = isAuthenticated && user && 
-                             (user.role === 'instructor' || user.role === 'admin') && 
-                             !isAuthor;
+  // Check if user is an admin
+  const isAdmin = isAuthenticated && user && user.role === 'admin';
+  
+  // Check if user is an instructor but not the author
+  const isInstructor = isAuthenticated && user && user.role === 'instructor' && !isAuthor;
                              
   // Check if user is already enrolled
-  const isEnrolled = course?.enrollments?.some(enrollment => 
-    enrollment.user === user?.id || 
-    (enrollment.user?._id && enrollment.user._id === user?.id)
+  const isEnrolled = course?.enrolledUsers?.some(userId => 
+    userId.toString() === user?.id || 
+    (userId._id && userId._id.toString() === user?.id)
   );
   
   if (isLoading) {
@@ -90,6 +95,11 @@ const CourseDetail = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
           <span className="block sm:inline">{error}</span>
+          {isAdmin && (
+            <span className="block sm:inline ml-2">
+              Check course status in <Link to="/admin/courses" className="underline">Manage Courses</Link>.
+            </span>
+          )}
         </div>
       </div>
     );
@@ -100,6 +110,11 @@ const CourseDetail = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded relative">
           <span className="block sm:inline">Course not found</span>
+          {isAdmin && (
+            <span className="block sm:inline ml-2">
+              Check course status in <Link to="/admin/courses" className="underline">Manage Courses</Link>.
+            </span>
+          )}
         </div>
       </div>
     );
@@ -115,7 +130,7 @@ const CourseDetail = () => {
             <div className="md:w-5/12 mb-6 md:mb-0 md:pr-8">
               <div className="relative rounded-lg overflow-hidden shadow-lg bg-black">
                 <img
-                  src={course.coverImage || DEFAULT_COURSE_IMAGE}
+                  src={course.image || DEFAULT_COURSE_IMAGE}
                   alt={course.title}
                   className="w-full h-auto object-cover"
                   style={{ aspectRatio: '16 / 9' }}
@@ -125,8 +140,8 @@ const CourseDetail = () => {
             
             {/* Right column: Course details */}
             <div className="md:w-7/12">
-              {/* Course status for instructor/admin */}
-              {(isAuthor || isInstructorOrAdmin) && (
+              {/* Course status for instructor/admin/author */}
+              {(isAuthor || isInstructor || isAdmin) && (
                 <div className="mb-3">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mr-2 
                     ${course.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
@@ -217,10 +232,18 @@ const CourseDetail = () => {
                       Edit Course
                     </Button>
                   </Link>
-                ) : isInstructorOrAdmin ? (
-                  <Button variant="secondary" disabled>
-                    Instructor View
-                  </Button>
+                ) : isAdmin ? (
+                  <Link to={`/admin/courses/${course._id}/edit`}>
+                    <Button variant="primary">
+                      Edit Course
+                    </Button>
+                  </Link>
+                ) : isInstructor ? (
+                  <Link to={`/instructor/courses/${course._id}/edit`}>
+                    <Button variant="secondary">
+                      Instructor View
+                    </Button>
+                  </Link>
                 ) : isEnrolled ? (
                   <Link to={`/courses/${course._id}/content`}>
                     <Button variant="primary">
@@ -285,7 +308,7 @@ const CourseDetail = () => {
               {/* About Tab Content */}
               <div className="prose max-w-none">
                 <h2 className="text-2xl font-bold mb-4">About This Course</h2>
-                <div dangerouslySetInnerHTML={{ __html: course.description }} />
+                <div dangerouslySetInnerHTML={{ __html: course.description || 'No description available.' }} />
                 
                 {course.learningObjectives && course.learningObjectives.length > 0 && (
                   <div className="mt-8">
@@ -325,15 +348,15 @@ const CourseDetail = () => {
                 <ul className="space-y-3 text-sm">
                   <li className="flex justify-between">
                     <span className="text-gray-600">Duration:</span>
-                    <span className="font-medium">{course.duration} weeks</span>
+                    <span className="font-medium">{course.duration || 'N/A'} weeks</span>
                   </li>
                   <li className="flex justify-between">
                     <span className="text-gray-600">Level:</span>
-                    <span className="font-medium">{course.level}</span>
+                    <span className="font-medium">{course.level || 'N/A'}</span>
                   </li>
                   <li className="flex justify-between">
                     <span className="text-gray-600">Category:</span>
-                    <span className="font-medium">{course.category}</span>
+                    <span className="font-medium">{course.category || 'N/A'}</span>
                   </li>
                   <li className="flex justify-between">
                     <span className="text-gray-600">Language:</span>
@@ -377,7 +400,7 @@ const CourseDetail = () => {
               </Card>
               
               {/* CTA Card */}
-              {!isEnrolled && !isAuthor && !isInstructorOrAdmin && (
+              {!isEnrolled && !isAuthor && !isAdmin && !isInstructor && (
                 <Card className="bg-gradient-to-br from-primary-600 to-primary-700 text-white">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-xl font-bold">Ready to start learning?</h3>

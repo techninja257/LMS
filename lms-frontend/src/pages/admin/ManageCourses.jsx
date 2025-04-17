@@ -1,5 +1,5 @@
 // src/pages/admin/ManageCourses.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllCourses, deleteCourse, approveCourse } from '../../api/courses';
 import { toast } from 'react-toastify';
@@ -29,61 +29,89 @@ const ManageCourses = () => {
     courseTitle: '',
   });
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Debounce filter changes to prevent rapid API calls
+  const debounce = (func, wait) => {
+    let timeout;
+    return (...args) => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func(...args), wait);
+    };
+  };
 
   // Fetch courses based on pagination and filters
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        setLoading(true);
+  const fetchCourses = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-        const { page, limit } = pagination;
-        const { search, category, level } = filters;
+      const { page, limit } = pagination;
+      const { search, category, level } = filters;
 
-        const query = {
-          page,
-          limit,
-          ...(search && { search }),
-          ...(category && { category }),
-          ...(level && { level }),
-        };
+      const query = {
+        page,
+        limit,
+        ...(search && { search }),
+        ...(category && { category }),
+        ...(level && { level }),
+      };
 
-        const response = await getAllCourses(query);
+      const response = await getAllCourses(query);
 
-        setCourses(response.data || []);
+      setCourses(response.data || []);
+      setPagination((prev) => ({
+        ...prev,
+        total: response.total || 0,
+      }));
+
+      if (response.data.length === 0 && response.total > 0) {
+        // If no courses on current page but total exists, go to last valid page
         setPagination((prev) => ({
           ...prev,
-          total: response.total || 0,
+          page: Math.max(1, Math.ceil(response.total / prev.limit)),
         }));
-
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-        setError(err.message || 'An unexpected error occurred');
-        setLoading(false);
       }
-    };
 
-    fetchCourses();
+      setLoading(false);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+      setError(err.response?.data?.message || 'Failed to load courses. Please try again.');
+      toast.error('Failed to load courses.');
+      setLoading(false);
+    } finally {
+      setIsRefreshing(false);
+    }
   }, [pagination.page, pagination.limit, filters]);
 
-  // Handle filter changes
-  const handleFilterChange = (e) => {
+  // Handle manual refresh
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchCourses();
+  };
+
+  // Trigger fetch on mount and when dependencies change
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
+
+  // Handle filter changes with debounce
+  const handleFilterChange = debounce((e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({
       ...prev,
       [name]: value,
     }));
-    // Reset to first page when filters change
     setPagination((prev) => ({
       ...prev,
       page: 1,
     }));
-  };
+  }, 300);
 
   // Handle search submit
   const handleSearch = (e) => {
     e.preventDefault();
-    // The filter changes already trigger the useEffect
+    // Filter changes are debounced and trigger useEffect
   };
 
   // Handle pagination
@@ -111,8 +139,8 @@ const ManageCourses = () => {
       setIsDeleting(true);
       await deleteCourse(deleteModal.courseId);
 
-      // Update local state by removing the deleted course
-      setCourses((prev) => prev.filter((course) => course._id !== deleteModal.courseId));
+      // Refetch courses instead of filtering locally
+      await fetchCourses();
 
       // Close modal and show success message
       setDeleteModal({ isOpen: false, courseId: null, courseTitle: '' });
@@ -166,13 +194,22 @@ const ManageCourses = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Manage Courses</h1>
-
-        <Link to="/admin/courses/create" className="btn btn-primary">
-          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-          </svg>
-          Add Course
-        </Link>
+        <div className="flex space-x-2">
+          <Button
+            variant="primary"
+            onClick={handleRefresh}
+            isLoading={isRefreshing}
+            disabled={loading || isRefreshing}
+          >
+            Refresh Courses
+          </Button>
+          <Link to="/admin/courses/create" className="btn btn-primary">
+            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+            Add Course
+          </Link>
+        </div>
       </div>
 
       {/* Filters */}
@@ -185,21 +222,18 @@ const ManageCourses = () => {
               value={filters.search}
               onChange={handleFilterChange}
             />
-
             <FormSelect
               name="category"
               options={categoryOptions}
               value={filters.category}
               onChange={handleFilterChange}
             />
-
             <FormSelect
               name="level"
               options={levelOptions}
               value={filters.level}
               onChange={handleFilterChange}
             />
-
             <div className="flex items-end">
               <Button type="submit" variant="primary">
                 Search
@@ -260,16 +294,16 @@ const ManageCourses = () => {
                         <div className="h-10 w-10 flex-shrink-0">
                           <img
                             className="h-10 w-10 rounded object-cover"
-                            src={course.coverImage || '/assets/images/default-course.jpg'}
+                            src={course.image || '/assets/images/default-course.jpg'}
                             alt={course.title}
                           />
                         </div>
                         <div className="ml-4">
                           <div className="text-sm font-medium text-gray-900">
-                            {course.title}
+                            {course.title || 'Untitled Course'}
                           </div>
                           <div className="text-sm text-gray-500">
-                            Duration: {course.duration} weeks
+                            Duration: {course.duration || 'N/A'} weeks
                           </div>
                         </div>
                       </div>
@@ -277,18 +311,18 @@ const ManageCourses = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
                         {course.author?.firstName
-                          ? `${course.author.firstName} ${course.author.lastName || ''}`
+                          ? `${course.author.firstName} ${course.author.lastName || ''}`.trim()
                           : 'Unknown Author'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                        {course.category}
+                        {course.category || 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        {course.level}
+                        {course.level || 'N/A'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -314,27 +348,31 @@ const ManageCourses = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex flex-col space-y-2">
                         <div className="flex space-x-2">
-                          <Link
-                            to={`/admin/courses/${course._id}/edit`}
-                            className="text-blue-600 hover:text-blue-900"
-                          >
-                            Edit
-                          </Link>
-                          <span>|</span>
-                          <Link
-                            to={`/courses/${course._id}`}
-                            className="text-green-600 hover:text-green-900"
-                            target="_blank"
-                          >
-                            View
-                          </Link>
-                          <span>|</span>
-                          <button
-                            onClick={() => openDeleteModal(course._id, course.title)}
-                            className="text-danger-600 hover:text-danger-900"
-                          >
-                            Delete
-                          </button>
+                          {course._id && (
+                            <>
+                              <Link
+                                to={`/admin/courses/${course._id}/edit`}
+                                className="text-blue-600 hover:text-blue-900"
+                              >
+                                Edit
+                              </Link>
+                              <span>|</span>
+                              <Link
+                                to={`/courses/${course._id}`}
+                                className="text-green-600 hover:text-green-900"
+                                target="_blank"
+                              >
+                                View
+                              </Link>
+                              <span>|</span>
+                              <button
+                                onClick={() => openDeleteModal(course._id, course.title)}
+                                className="text-danger-600 hover:text-danger-900"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                         {course.requiresApproval && !course.isApproved && (
                           <button
@@ -363,7 +401,6 @@ const ManageCourses = () => {
               Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
               {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} courses
             </div>
-
             <div className="flex space-x-2">
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
