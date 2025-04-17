@@ -16,17 +16,17 @@ const ManageCourses = () => {
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
-    total: 0
+    total: 0,
   });
   const [filters, setFilters] = useState({
     search: '',
     category: '',
-    level: ''
+    level: '',
   });
   const [deleteModal, setDeleteModal] = useState({
     isOpen: false,
     courseId: null,
-    courseTitle: ''
+    courseTitle: '',
   });
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -35,48 +35,48 @@ const ManageCourses = () => {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        
+
         const { page, limit } = pagination;
         const { search, category, level } = filters;
-        
+
         const query = {
           page,
           limit,
           ...(search && { search }),
           ...(category && { category }),
-          ...(level && { level })
+          ...(level && { level }),
         };
-        
+
         const response = await getAllCourses(query);
-        
-        setCourses(response.data);
-        setPagination(prev => ({
+
+        setCourses(response.data || []);
+        setPagination((prev) => ({
           ...prev,
-          total: response.total || 0
+          total: response.total || 0,
         }));
-        
+
         setLoading(false);
       } catch (err) {
         console.error('Error fetching courses:', err);
-        setError(err);
+        setError(err.message || 'An unexpected error occurred');
         setLoading(false);
       }
     };
-    
+
     fetchCourses();
   }, [pagination.page, pagination.limit, filters]);
 
   // Handle filter changes
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
     // Reset to first page when filters change
-    setPagination(prev => ({
+    setPagination((prev) => ({
       ...prev,
-      page: 1
+      page: 1,
     }));
   };
 
@@ -89,10 +89,10 @@ const ManageCourses = () => {
   // Handle pagination
   const handlePageChange = (newPage) => {
     if (newPage < 1 || newPage > Math.ceil(pagination.total / pagination.limit)) return;
-    
-    setPagination(prev => ({
+
+    setPagination((prev) => ({
       ...prev,
-      page: newPage
+      page: newPage,
     }));
   };
 
@@ -101,7 +101,7 @@ const ManageCourses = () => {
     setDeleteModal({
       isOpen: true,
       courseId,
-      courseTitle
+      courseTitle,
     });
   };
 
@@ -110,10 +110,10 @@ const ManageCourses = () => {
     try {
       setIsDeleting(true);
       await deleteCourse(deleteModal.courseId);
-      
+
       // Update local state by removing the deleted course
-      setCourses(prev => prev.filter(course => course._id !== deleteModal.courseId));
-      
+      setCourses((prev) => prev.filter((course) => course._id !== deleteModal.courseId));
+
       // Close modal and show success message
       setDeleteModal({ isOpen: false, courseId: null, courseTitle: '' });
       toast.success('Course deleted successfully');
@@ -129,12 +129,14 @@ const ManageCourses = () => {
   const handleApproveCourse = async (courseId) => {
     try {
       await approveCourse(courseId);
-      
+
       // Update local state
-      setCourses(prev => prev.map(course => 
-        course._id === courseId ? { ...course, isApproved: true } : course
-      ));
-      
+      setCourses((prev) =>
+        prev.map((course) =>
+          course._id === courseId ? { ...course, isApproved: true } : course
+        )
+      );
+
       toast.success('Course approved successfully');
     } catch (err) {
       console.error('Error approving course:', err);
@@ -150,21 +152,21 @@ const ManageCourses = () => {
     { value: 'UI/UX', label: 'UI/UX' },
     { value: 'Data Science', label: 'Data Science' },
     { value: 'Business', label: 'Business' },
-    { value: 'Other', label: 'Other' }
+    { value: 'Other', label: 'Other' },
   ];
 
   const levelOptions = [
     { value: '', label: 'All Levels' },
     { value: 'Beginner', label: 'Beginner' },
     { value: 'Intermediate', label: 'Intermediate' },
-    { value: 'Advanced', label: 'Advanced' }
+    { value: 'Advanced', label: 'Advanced' },
   ];
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Manage Courses</h1>
-        
+
         <Link to="/admin/courses/create" className="btn btn-primary">
           <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -172,7 +174,7 @@ const ManageCourses = () => {
           Add Course
         </Link>
       </div>
-      
+
       {/* Filters */}
       <Card className="mb-6">
         <form onSubmit={handleSearch}>
@@ -183,21 +185,21 @@ const ManageCourses = () => {
               value={filters.search}
               onChange={handleFilterChange}
             />
-            
+
             <FormSelect
               name="category"
               options={categoryOptions}
               value={filters.category}
               onChange={handleFilterChange}
             />
-            
+
             <FormSelect
               name="level"
               options={levelOptions}
               value={filters.level}
               onChange={handleFilterChange}
             />
-            
+
             <div className="flex items-end">
               <Button type="submit" variant="primary">
                 Search
@@ -206,7 +208,7 @@ const ManageCourses = () => {
           </div>
         </form>
       </Card>
-      
+
       {/* Courses List */}
       <Card>
         {loading ? (
@@ -216,7 +218,7 @@ const ManageCourses = () => {
         ) : error ? (
           <div className="bg-danger-50 text-danger-700 p-4 rounded-md">
             <h3 className="font-medium">Error loading courses</h3>
-            <p>{error.message || 'An unexpected error occurred.'}</p>
+            <p>{error}</p>
           </div>
         ) : courses.length === 0 ? (
           <div className="text-center py-8">
@@ -251,15 +253,15 @@ const ManageCourses = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {courses.map(course => (
+                {courses.map((course) => (
                   <tr key={course._id}>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-10 w-10 flex-shrink-0">
-                          <img 
-                            className="h-10 w-10 rounded object-cover" 
-                            src={course.coverImage || '/assets/images/default-course.jpg'} 
-                            alt={course.title} 
+                          <img
+                            className="h-10 w-10 rounded object-cover"
+                            src={course.coverImage || '/assets/images/default-course.jpg'}
+                            alt={course.title}
                           />
                         </div>
                         <div className="ml-4">
@@ -274,10 +276,9 @@ const ManageCourses = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {typeof course.author === 'object' 
-                          ? `${course.author.firstName} ${course.author.lastName}`
-                          : 'Unknown Author'
-                        }
+                        {course.author?.firstName
+                          ? `${course.author.firstName} ${course.author.lastName || ''}`
+                          : 'Unknown Author'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -292,20 +293,19 @@ const ManageCourses = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col space-y-1">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          course.isPublished 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <span
+                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            course.isPublished ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           {course.isPublished ? 'Published' : 'Draft'}
                         </span>
-                        
                         {course.requiresApproval && (
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                            course.isApproved 
-                              ? 'bg-green-100 text-green-800' 
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
+                          <span
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                              course.isApproved ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                          >
                             {course.isApproved ? 'Approved' : 'Pending Approval'}
                           </span>
                         )}
@@ -314,14 +314,14 @@ const ManageCourses = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <div className="flex flex-col space-y-2">
                         <div className="flex space-x-2">
-                          <Link 
+                          <Link
                             to={`/admin/courses/${course._id}/edit`}
                             className="text-blue-600 hover:text-blue-900"
                           >
                             Edit
                           </Link>
                           <span>|</span>
-                          <Link 
+                          <Link
                             to={`/courses/${course._id}`}
                             className="text-green-600 hover:text-green-900"
                             target="_blank"
@@ -336,7 +336,6 @@ const ManageCourses = () => {
                             Delete
                           </button>
                         </div>
-                        
                         {course.requiresApproval && !course.isApproved && (
                           <button
                             onClick={() => handleApproveCourse(course._id)}
@@ -356,14 +355,15 @@ const ManageCourses = () => {
             </table>
           </div>
         )}
-        
+
         {/* Pagination */}
         {!loading && !error && courses.length > 0 && (
           <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              Showing {(pagination.page - 1) * pagination.limit + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} courses
+              Showing {(pagination.page - 1) * pagination.limit + 1} to{' '}
+              {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} courses
             </div>
-            
+
             <div className="flex space-x-2">
               <button
                 onClick={() => handlePageChange(pagination.page - 1)}
@@ -383,7 +383,7 @@ const ManageCourses = () => {
           </div>
         )}
       </Card>
-      
+
       {/* Delete Confirmation Modal */}
       <Modal
         isOpen={deleteModal.isOpen}

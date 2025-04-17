@@ -11,9 +11,12 @@ export const getAllCourses = async (query = {}) => {
     });
 
     const response = await api.get(`/api/courses?${params.toString()}`);
-    return response.data;
+    return {
+      data: response.data.data || [],
+      total: response.data.total || 0,
+    };
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to fetch courses');
   }
 };
 
@@ -23,7 +26,7 @@ export const getCourse = async (courseId) => {
     const response = await api.get(`/api/courses/${courseId}`);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to fetch course');
   }
 };
 
@@ -31,17 +34,17 @@ export const getCourse = async (courseId) => {
 export const createCourse = async (courseData) => {
   try {
     const response = await api.post('/api/courses', courseData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data.data;
   } catch (error) {
     if (error.response?.data?.errors) {
       const errorMessages = Object.values(error.response.data.errors)
-        .map(err => err.message)
+        .map((err) => err.message)
         .join(', ');
       throw new Error(errorMessages);
     }
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to create course');
   }
 };
 
@@ -51,7 +54,7 @@ export const updateCourse = async (courseId, courseData) => {
     const response = await api.put(`/api/courses/${courseId}`, courseData);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to update course');
   }
 };
 
@@ -61,7 +64,7 @@ export const deleteCourse = async (courseId) => {
     const response = await api.delete(`/api/courses/${courseId}`);
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to delete course');
   }
 };
 
@@ -72,11 +75,11 @@ export const uploadCourseImage = async (courseId, imageFile) => {
     formData.append('file', imageFile);
 
     const response = await api.put(`/api/courses/${courseId}/photo`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to upload image');
   }
 };
 
@@ -86,7 +89,7 @@ export const enrollCourse = async (courseId) => {
     const response = await api.post(`/api/courses/${courseId}/enroll`);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to enroll in course');
   }
 };
 
@@ -96,7 +99,7 @@ export const unenrollCourse = async (courseId) => {
     const response = await api.delete(`/api/courses/${courseId}/enroll`);
     return response.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to unenroll from course');
   }
 };
 
@@ -106,7 +109,7 @@ export const getEnrolledCourses = async () => {
     const response = await api.get('/api/courses/enrolled');
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to fetch enrolled courses');
   }
 };
 
@@ -116,7 +119,7 @@ export const approveCourse = async (courseId) => {
     const response = await api.put(`/api/courses/${courseId}/approve`);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to approve course');
   }
 };
 
@@ -126,7 +129,7 @@ export const generateCertificate = async (courseId) => {
     const response = await api.post(`/api/courses/${courseId}/certificate`);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to generate certificate');
   }
 };
 
@@ -136,7 +139,7 @@ export const submitCourseForApproval = async (courseId) => {
     const response = await api.put(`/api/courses/${courseId}/submit`);
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to submit course for approval');
   }
 };
 
@@ -146,6 +149,6 @@ export const publishCourse = async (courseId, isPublished) => {
     const response = await api.put(`/api/courses/${courseId}/publish`, { isPublished });
     return response.data.data;
   } catch (error) {
-    throw error;
+    throw new Error(error.response?.data?.message || 'Failed to publish/unpublish course');
   }
 };

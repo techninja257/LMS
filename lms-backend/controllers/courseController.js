@@ -1,36 +1,42 @@
-const asyncHandler = require('../middleware/async');
+const asyncHandler = require('express-async-handler');
 const ErrorResponse = require('../utils/errorResponse');
 const Course = require('../models/Course');
-const asyncHandler = require('express-async-handler');
-const Course = require('../models/courseModel');
 
 // @desc    Get all courses
 // @route   GET /api/courses
 // @access  Public
 exports.getCourses = asyncHandler(async (req, res, next) => {
-  res.status(200).json(res.advancedResults);
+  // Ensure advancedResults middleware is applied
+  const results = res.advancedResults;
+
+  // Populate author field in the query
+  const query = Course.find()
+    .populate('author', 'firstName lastName profileImage')
+    .lean();
+
+  // Apply advancedResults query modifications (e.g., pagination, filtering)
+  const courses = await query
+    .skip(results.skip)
+    .limit(results.limit)
+    .sort(results.sort);
+
+  // Filter out courses with invalid authors
+  const validCourses = courses.filter((course) => {
+    if (!course.author || !course.author.firstName) {
+      console.warn(`Course ${course._id} has no valid author`);
+      return false;
+    }
+    return true;
+  });
+
+  res.status(200).json({
+    success: true,
+    count: validCourses.length,
+    total: results.total, // Preserve total from advancedResults
+    data: validCourses,
+    pagination: results.pagination,
+  });
 });
-
-
-// Get a single course by ID
-const getCourse = asyncHandler(async (req, res) => {
-  const course = await Course.findById(req.params.id);
-
-  if (!course) {
-    res.status(404);
-    throw new Error('Course not found');
-  }
-
-  // Check if user is the course author or admin
-  if (course.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-    res.status(403);
-    throw new Error('Not authorized to access this course');
-  }
-
-  res.status(200).json(course);
-});
-
-
 
 // @desc    Get single course
 // @route   GET /api/courses/:id
@@ -53,7 +59,7 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
     if (!req.user) {
       return next(new ErrorResponse(`Course not found`, 404));
     }
-    
+
     // Check if user is the author, admin, or instructor
     const authorId = course.author._id ? course.author._id.toString() : course.author.toString();
     if (req.user.role !== 'admin' && req.user.role !== 'instructor' && req.user.id !== authorId) {
@@ -63,7 +69,7 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: course
+    data: course,
   });
 });
 
@@ -76,16 +82,16 @@ exports.createCourse = asyncHandler(async (req, res, next) => {
     if (typeof req.body.modules === 'string') {
       req.body.modules = JSON.parse(req.body.modules);
     }
-    
+
     // Handle prerequisites and learning objectives
     if (typeof req.body.prerequisites === 'string') {
       req.body.prerequisites = JSON.parse(req.body.prerequisites);
     }
-    
+
     if (typeof req.body.learningObjectives === 'string') {
       req.body.learningObjectives = JSON.parse(req.body.learningObjectives);
     }
-    
+
     // Capitalize the level
     if (req.body.level) {
       req.body.level = req.body.level.charAt(0).toUpperCase() + req.body.level.slice(1);
@@ -93,11 +99,11 @@ exports.createCourse = asyncHandler(async (req, res, next) => {
 
     // Add user to req.body
     req.body.author = req.user.id;
-    
+
     // Set initial states for new course
     req.body.isPublished = false;
     req.body.isApproved = false;
-    
+
     // Auto-approve courses created by admins
     if (req.user.role === 'admin') {
       req.body.isApproved = true;
@@ -109,7 +115,7 @@ exports.createCourse = asyncHandler(async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      data: course
+      data: course,
     });
   } catch (err) {
     next(err);
@@ -137,7 +143,7 @@ exports.updateCourse = asyncHandler(async (req, res, next) => {
 
   course = await Course.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
-    runValidators: true
+    runValidators: true,
   });
 
   res.status(200).json({ success: true, data: course });
@@ -164,7 +170,7 @@ exports.submitCourseForApproval = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: course
+    data: course,
   });
 });
 
@@ -184,7 +190,7 @@ exports.approveCourse = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: course
+    data: course,
   });
 });
 
@@ -214,25 +220,15 @@ exports.publishCourse = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: course
+    data: course,
   });
 });
 
 // @desc    Enroll in a course
 // @route   POST /api/courses/:id/enroll
 // @access  Private
-// Updated enrollCourse controller function
-
-// @desc    Enroll in a course
-// @route   POST /api/courses/:id/enroll
-// @access  Private
-// Updated enrollCourse controller function
-
-// @desc    Enroll in a course
-// @route   POST /api/courses/:id/enroll
-// @access  Private
 exports.enrollCourse = asyncHandler(async (req, res, next) => {
-  const course = await Course.findById(req.params.id);
+  const course = await Course.findById(req.params.idd);
 
   if (!course) {
     return next(new ErrorResponse('Course not found', 404));
@@ -257,7 +253,6 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
   res.status(200).json({ success: true, data: course });
 });
 
-
 // @desc    Unenroll from a course
 // @route   DELETE /api/courses/:id/enroll
 // @access  Private
@@ -269,7 +264,7 @@ exports.unenrollCourse = asyncHandler(async (req, res, next) => {
   }
 
   course.enrolledUsers = course.enrolledUsers.filter(
-    userId => userId.toString() !== req.user.id
+    (userId) => userId.toString() !== req.user.id
   );
 
   await course.save();
@@ -297,7 +292,7 @@ exports.uploadCourseImage = asyncHandler(async (req, res, next) => {
   }
 
   if (!req.file || !req.file.path) {
-    return next(new ErrorResponse('Image upload failed', 400));
+    return next (new ErrorResponse('Image upload failed', 400));
   }
 
   course.image = req.file.path;
