@@ -19,7 +19,6 @@ const Course = require('../models/Course');
 const { protect } = require('../middleware/auth');
 const authorize = require('../middleware/roleAccess');
 const cloudStorage = require('../config/cloudStorage');
-
 const router = express.Router();
 
 // Public routes
@@ -70,5 +69,8 @@ router.route('/:id/photo')
     cloudStorage.upload.courseImage.single('file'),
     uploadCourseImage
   );
+
+  
+
 
 module.exports = router;

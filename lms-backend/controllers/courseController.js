@@ -1,6 +1,8 @@
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const Course = require('../models/Course');
+const asyncHandler = require('express-async-handler');
+const Course = require('../models/courseModel');
 
 // @desc    Get all courses
 // @route   GET /api/courses
@@ -8,6 +10,27 @@ const Course = require('../models/Course');
 exports.getCourses = asyncHandler(async (req, res, next) => {
   res.status(200).json(res.advancedResults);
 });
+
+
+// Get a single course by ID
+const getCourse = asyncHandler(async (req, res) => {
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    res.status(404);
+    throw new Error('Course not found');
+  }
+
+  // Check if user is the course author or admin
+  if (course.author.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    res.status(403);
+    throw new Error('Not authorized to access this course');
+  }
+
+  res.status(200).json(course);
+});
+
+
 
 // @desc    Get single course
 // @route   GET /api/courses/:id

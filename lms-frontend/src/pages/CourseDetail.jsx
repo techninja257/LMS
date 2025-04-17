@@ -1,23 +1,22 @@
-// File path: lms-frontend/src/pages/CourseDetail.jsx
+// src/pages/CourseDetail.jsx
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { FaStar, FaRegStar, FaStarHalfAlt, FaClock, FaBook, FaGraduationCap, FaLanguage, FaLevelUpAlt, FaCalendarAlt, FaUsers, FaRegBookmark, FaBookmark, FaShare, FaPlayCircle, FaDownload, FaMobileAlt, FaCertificate, FaGift, FaTag } from 'react-icons/fa';
-
+import { toast } from 'react-toastify';
 import { getCourse, enrollCourse } from '../api/courses';
-import { useAuth } from '../hooks/useAuth'; // Updated import to use the hook
+import { useAuth } from '../hooks/useAuth';
+import Card from '../components/common/Card';
 import Button from '../components/common/Button';
+import { DEFAULT_COURSE_IMAGE } from '../config';
 
 const CourseDetail = () => {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth(); // Use the hook instead of context directly
+  const { user, isAuthenticated } = useAuth();
   
   const [course, setCourse] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('overview');
   const [isEnrolling, setIsEnrolling] = useState(false);
-  const [isBookmarked, setIsBookmarked] = useState(false);
   const [enrollmentError, setEnrollmentError] = useState('');
   
   useEffect(() => {
@@ -29,26 +28,19 @@ const CourseDetail = () => {
     setError('');
     
     try {
-      const response = await getCourse(courseId);
-      setCourse(response.data);
-      setIsBookmarked(response.data.isBookmarked || false);
+      const courseData = await getCourse(courseId);
+      setCourse(courseData);
     } catch (err) {
-      setError('Failed to load course details. Please try again later.');
       console.error('Error fetching course:', err);
+      setError('Failed to load course details. Please try again later.');
     } finally {
       setIsLoading(false);
     }
   };
   
   const handleEnroll = async () => {
-    // Check if user is an instructor or admin and prevent enrollment
-    if (isAuthenticated && (user.role === 'instructor' || user.role === 'admin')) {
-      setEnrollmentError('As an instructor or admin, you cannot enroll in courses.');
-      return;
-    }
-    
     if (!isAuthenticated) {
-      navigate('/login', { state: { redirectTo: `/courses/${courseId}` } });
+      navigate(`/login?redirect=/courses/${courseId}`);
       return;
     }
     
@@ -57,46 +49,35 @@ const CourseDetail = () => {
     
     try {
       await enrollCourse(courseId);
+      toast.success('Successfully enrolled in the course!');
       navigate(`/courses/${courseId}/content`);
     } catch (err) {
-      setEnrollmentError(err.response?.data?.message || 'Failed to enroll in the course. Please try again.');
       console.error('Error enrolling in course:', err);
+      setEnrollmentError(err.response?.data?.error || 'Failed to enroll in course. Please try again.');
     } finally {
       setIsEnrolling(false);
     }
   };
   
-  const toggleBookmark = async () => {
-    if (!isAuthenticated) {
-      navigate('/login', { state: { redirectTo: `/courses/${courseId}` } });
-      return;
-    }
-    
-    // Implement bookmark toggle logic with API
-    setIsBookmarked(!isBookmarked);
-  };
-  
-  const renderStarRating = (rating) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 >= 0.5;
-    
-    for (let i = 1; i <= 5; i++) {
-      if (i <= fullStars) {
-        stars.push(<FaStar key={i} className="text-yellow-500" />);
-      } else if (i === fullStars + 1 && hasHalfStar) {
-        stars.push(<FaStarHalfAlt key={i} className="text-yellow-500" />);
-      } else {
-        stars.push(<FaRegStar key={i} className="text-yellow-500" />);
-      }
-    }
-    
-    return <div className="flex items-center">{stars}</div>;
-  };
+  // Determine if user is author of the course
+  const isAuthor = isAuthenticated && user && course?.author && 
+                  (typeof course.author === 'object' ? 
+                   course.author._id === user.id : course.author === user.id);
+                   
+  // Check if user is an instructor/admin but not the author
+  const isInstructorOrAdmin = isAuthenticated && user && 
+                             (user.role === 'instructor' || user.role === 'admin') && 
+                             !isAuthor;
+                             
+  // Check if user is already enrolled
+  const isEnrolled = course?.enrollments?.some(enrollment => 
+    enrollment.user === user?.id || 
+    (enrollment.user?._id && enrollment.user._id === user?.id)
+  );
   
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen-minus-nav">
+      <div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen">
         <div className="w-16 h-16 border-t-4 border-primary-500 border-solid rounded-full animate-spin">
           <span className="sr-only">Loading...</span>
         </div>
@@ -123,20 +104,9 @@ const CourseDetail = () => {
       </div>
     );
   }
-
-  // Determine if user is author of the course
-  const isAuthor = isAuthenticated && user && course.author && 
-                  (typeof course.author === 'object' ? 
-                   course.author._id === user.id : course.author === user.id);
-                   
-  // Check if user is an instructor/admin but not the author
-  const isInstructorOrAdmin = isAuthenticated && user && 
-                             (user.role === 'instructor' || user.role === 'admin') && 
-                             !isAuthor;
   
-  // Return full component  
   return (
-    <div className="bg-gray-50 min-h-screen-minus-nav">
+    <div className="bg-gray-50">
       {/* Course Header */}
       <div className="bg-gradient-to-r from-primary-800 to-primary-600 text-white py-12">
         <div className="container mx-auto px-4">
@@ -145,17 +115,11 @@ const CourseDetail = () => {
             <div className="md:w-5/12 mb-6 md:mb-0 md:pr-8">
               <div className="relative rounded-lg overflow-hidden shadow-lg bg-black">
                 <img
-                  src={course.coverImage || '/images/course-placeholder.jpg'}
+                  src={course.coverImage || DEFAULT_COURSE_IMAGE}
                   alt={course.title}
                   className="w-full h-auto object-cover"
                   style={{ aspectRatio: '16 / 9' }}
                 />
-                {course.previewVideoUrl && (
-                  <button className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity">
-                    <span className="sr-only">Play preview</span>
-                    <FaPlayCircle className="text-white text-5xl" />
-                  </button>
-                )}
               </div>
             </div>
             
@@ -177,34 +141,40 @@ const CourseDetail = () => {
               
               <div className="flex flex-wrap gap-2 mb-3">
                 {course.category && (
-                  <Link
-                    to={`/courses?category=${course.category}`}
-                    className="text-xs font-medium bg-white/20 px-3 py-1 rounded-full hover:bg-white/30"
-                  >
+                  <span className="text-xs font-medium bg-white/20 px-3 py-1 rounded-full">
                     {course.category}
-                  </Link>
+                  </span>
+                )}
+                {course.level && (
+                  <span className="text-xs font-medium bg-white/20 px-3 py-1 rounded-full">
+                    {course.level}
+                  </span>
                 )}
               </div>
               
               <h1 className="text-3xl md:text-4xl font-bold mb-4">{course.title}</h1>
               
-              <p className="text-white/90 text-lg mb-6">{course.shortDescription || course.summary}</p>
+              <p className="text-white/90 text-lg mb-6">{course.summary || course.description?.substring(0, 150)}</p>
               
               <div className="flex items-center mb-4">
-                {renderStarRating(course.averageRating || 0)}
-                <span className="ml-2 font-medium">
-                  {course.averageRating?.toFixed(1) || '0.0'} 
-                  <span className="text-white/80 ml-1">
-                    ({course.reviewCount || 0} {course.reviewCount === 1 ? 'review' : 'reviews'})
+                <div className="flex items-center">
+                  <svg className="h-5 w-5 text-yellow-500" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                  <span className="ml-1 font-medium">
+                    {course.averageRating?.toFixed(1) || '0.0'} 
+                    <span className="text-white/80 ml-1">
+                      ({course.reviewCount || 0} {course.reviewCount === 1 ? 'review' : 'reviews'})
+                    </span>
                   </span>
-                </span>
+                </div>
               </div>
               
               <div className="flex items-center mb-4">
                 <img
                   src={typeof course.author === 'object' ? 
-                       (course.author.profileImage || '/images/default-avatar.png') :
-                       '/images/default-avatar.png'}
+                       (course.author.profileImage || '/assets/images/default-avatar.png') :
+                       '/assets/images/default-avatar.png'}
                   alt={typeof course.author === 'object' ? 
                        `${course.author.firstName} ${course.author.lastName}` : 'Instructor'}
                   className="w-10 h-10 rounded-full mr-3 object-cover"
@@ -220,435 +190,214 @@ const CourseDetail = () => {
               
               <div className="flex flex-wrap gap-6 text-white/90 text-sm mb-6">
                 <div className="flex items-center">
-                  <FaCalendarAlt className="mr-2" />
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                  </svg>
                   <span>Last updated {new Date(course.updatedAt || course.createdAt).toLocaleDateString()}</span>
                 </div>
                 <div className="flex items-center">
-                  <FaUsers className="mr-2" />
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
                   <span>{course.enrollmentCount || course.enrolledUsers?.length || 0} students</span>
                 </div>
                 <div className="flex items-center">
-                  <FaLanguage className="mr-2" />
+                  <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                  </svg>
                   <span>{course.language || 'English'}</span>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Course Action Box (Sticky on Mobile) */}
-      <div className="sticky top-16 z-10 bg-white border-b shadow-sm md:hidden py-4">
-        <div className="container mx-auto px-4 flex justify-between items-center">
-          <div>
-            <div className="text-2xl font-bold text-primary-600">
-              {course.isFree ? 'Free' : `$${course.price?.toFixed(2) || '0.00'}`}
-            </div>
-            {course.originalPrice && !course.isFree && (
-              <div className="text-gray-500 line-through text-sm">
-                ${course.originalPrice.toFixed(2)}
-              </div>
-            )}
-          </div>
-          
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleBookmark}
-              className="flex items-center"
-            >
-              {isBookmarked ? <FaBookmark className="mr-1" /> : <FaRegBookmark className="mr-1" />}
-            </Button>
-            
-            {/* Conditionally show enroll or edit button */}
-            {isAuthor ? (
-              <Link to={`/instructor/courses/${course._id}/edit`}>
-                <Button
-                  variant="primary"
-                  size="sm"
-                >
-                  Edit Course
-                </Button>
-              </Link>
-            ) : isInstructorOrAdmin ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={true}
-              >
-                Instructor View
-              </Button>
-            ) : (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleEnroll}
-                isLoading={isEnrolling}
-              >
-                {course.isEnrolled ? 'Go to Course' : course.isFree ? 'Enroll for Free' : 'Enroll Now'}
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col md:flex-row gap-8">
-          {/* Main Content */}
-          <div className="md:w-8/12">
-            {enrollmentError && (
-              <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6">
-                <span className="block sm:inline">{enrollmentError}</span>
-              </div>
-            )}
-            
-            {/* Tabs */}
-            <div className="mb-6 border-b">
-              <div className="flex space-x-8">
-                <button
-                  onClick={() => setActiveTab('overview')}
-                  className={`pb-4 px-1 font-medium ${
-                    activeTab === 'overview'
-                      ? 'border-b-2 border-primary-600 text-primary-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Overview
-                </button>
-                <button
-                  onClick={() => setActiveTab('curriculum')}
-                  className={`pb-4 px-1 font-medium ${
-                    activeTab === 'curriculum'
-                      ? 'border-b-2 border-primary-600 text-primary-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Curriculum
-                </button>
-                <button
-                  onClick={() => setActiveTab('instructor')}
-                  className={`pb-4 px-1 font-medium ${
-                    activeTab === 'instructor'
-                      ? 'border-b-2 border-primary-600 text-primary-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Instructor
-                </button>
-                <button
-                  onClick={() => setActiveTab('reviews')}
-                  className={`pb-4 px-1 font-medium ${
-                    activeTab === 'reviews'
-                      ? 'border-b-2 border-primary-600 text-primary-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
-                >
-                  Reviews
-                </button>
-              </div>
-            </div>
-            
-            {/* Tab Content */}
-            <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
-              {activeTab === 'overview' && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">About This Course</h2>
-                  <div className="prose max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: course.description }}></div>
-                  </div>
-                  
-                  {course.learningObjectives && course.learningObjectives.length > 0 && (
-                    <div className="mt-8">
-                      <h3 className="text-xl font-semibold mb-4">What You'll Learn</h3>
-                      <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {course.learningObjectives.map((objective, index) => (
-                          <li key={index} className="flex items-start">
-                            <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span>{objective}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {course.prerequisites && course.prerequisites.length > 0 && (
-                    <div className="mt-8">
-                      <h3 className="text-xl font-semibold mb-4">Prerequisites</h3>
-                      <ul className="list-disc pl-5 space-y-2 text-gray-700">
-                        {course.prerequisites.map((prerequisite, index) => (
-                          <li key={index}>{prerequisite}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                  
-                  {course.targetAudience && (
-                    <div className="mt-8">
-                      <h3 className="text-xl font-semibold mb-4">Who This Course is For</h3>
-                      <p className="text-gray-700">{course.targetAudience}</p>
-                    </div>
-                  )}
-                </div>
-              )}
               
-              {activeTab === 'curriculum' && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-4">Course Content</h2>
-                  <div className="flex flex-wrap gap-4 mb-6 text-sm text-gray-600">
-                    <div className="flex items-center">
-                      <FaBook className="mr-2" />
-                      <span>{course.modulesCount || course.modules?.length || 0} modules</span>
-                    </div>
-                    <div className="flex items-center">
-                      <FaPlayCircle className="mr-2" />
-                      <span>{course.lessonsCount || course.lessons?.length || 0} lessons</span>
-                    </div>
-                    <div className="flex items-center">
-                      <FaClock className="mr-2" />
-                      <span>Total length: {course.totalDuration || '0h 0m'}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Curriculum preview */}
-                  <div className="border rounded-lg divide-y">
-                    {course.modules && course.modules.map((module, moduleIndex) => (
-                      <div key={moduleIndex} className="p-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="font-medium">Module {moduleIndex + 1}: {module.title}</h3>
-                          <span className="text-sm text-gray-500">
-                            {module.lessons ? module.lessons.length : 0} lessons
-                          </span>
-                        </div>
-                        
-                        {module.description && (
-                          <p className="text-sm text-gray-600 mt-1">{module.description}</p>
-                        )}
-                        
-                        {/* Preview lessons - this would need to be expanded */}
-                        <div className="mt-3">
-                          <p className="text-sm text-primary-600">
-                            {course.isEnrolled 
-                              ? "View all lessons in this module" 
-                              : "Enroll to access all lessons in this module"}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                    
-                    {(!course.modules || course.modules.length === 0) && (
-                      <div className="p-4 text-center text-gray-500">
-                        No curriculum information available
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              
-              {activeTab === 'instructor' && (
-                <div>
-                  <h2 className="text-2xl font-bold mb-6">About the Instructor</h2>
-                  
-                  <div className="flex items-start mb-6">
-                    <img
-                      src={typeof course.author === 'object' ? 
-                          (course.author.profileImage || '/images/default-avatar.png') :
-                          '/images/default-avatar.png'}
-                      alt={typeof course.author === 'object' ? 
-                          `${course.author.firstName} ${course.author.lastName}` : 'Instructor'}
-                      className="w-20 h-20 rounded-full mr-6 object-cover"
-                    />
-                    <div>
-                      <h3 className="text-xl font-semibold">
-                        {typeof course.author === 'object' ? 
-                         `${course.author.firstName} ${course.author.lastName}` : 'Unknown Instructor'}
-                      </h3>
-                      <p className="text-gray-600 mb-2">{course.author?.title || 'Instructor'}</p>
-                      
-                      <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <div className="flex items-center">
-                          <FaStar className="mr-1 text-yellow-500" />
-                          <span>{course.author?.averageRating?.toFixed(1) || '0.0'} Instructor Rating</span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaGraduationCap className="mr-1" />
-                          <span>{course.author?.reviewCount || 0} Reviews</span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaUsers className="mr-1" />
-                          <span>{course.author?.studentsCount || 0} Students</span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaBook className="mr-1" />
-                          <span>{course.author?.coursesCount || 0} Courses</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="prose max-w-none">
-                    <div dangerouslySetInnerHTML={{ __html: course.author?.bio || 'No instructor bio available.' }}></div>
-                  </div>
-                </div>
-              )}
-              
-              {/* Reviews tab content omitted for brevity */}
-            </div>
-          </div>
-          
-          {/* Sidebar */}
-          <div className="md:w-4/12">
-            <div className="bg-white rounded-lg shadow-sm overflow-hidden sticky top-24">
-              {course.previewVideoUrl ? (
-                <div className="relative bg-black aspect-video">
-                  <img
-                    src={course.thumbnailUrl || '/images/course-placeholder.jpg'}
-                    alt={course.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <button className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-30 hover:bg-opacity-50 transition-opacity">
-                    <span className="sr-only">Play preview</span>
-                    <FaPlayCircle className="text-white text-5xl" />
-                  </button>
-                </div>
-              ) : (
-                <img
-                  src={course.coverImage || '/images/course-placeholder.jpg'}
-                  alt={course.title}
-                  className="w-full h-auto object-cover"
-                />
-              )}
-              
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <div className="text-3xl font-bold text-primary-600">
-                      {course.isFree ? 'Free' : `$${course.price?.toFixed(2) || '0.00'}`}
-                    </div>
-                    {course.originalPrice && !course.isFree && (
-                      <div className="flex items-center">
-                        <span className="text-gray-500 line-through mr-2">
-                          ${course.originalPrice.toFixed(2)}
-                        </span>
-                        <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
-                          {Math.round((1 - course.price / course.originalPrice) * 100)}% off
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={toggleBookmark}
-                    className="flex items-center"
-                  >
-                    {isBookmarked ? <FaBookmark className="mr-1" /> : <FaRegBookmark className="mr-1" />}
-                    {isBookmarked ? 'Saved' : 'Save'}
-                  </Button>
-                </div>
-                
+              {/* Action Buttons */}
+              <div className="flex gap-3">
                 {isAuthor ? (
                   <Link to={`/instructor/courses/${course._id}/edit`}>
-                    <Button
-                      variant="primary"
-                      className="w-full mb-4"
-                    >
+                    <Button variant="primary">
                       Edit Course
                     </Button>
                   </Link>
                 ) : isInstructorOrAdmin ? (
-                  <Button
-                    variant="secondary"
-                    className="w-full mb-4"
-                    disabled={true}
-                  >
+                  <Button variant="secondary" disabled>
                     Instructor View
                   </Button>
+                ) : isEnrolled ? (
+                  <Link to={`/courses/${course._id}/content`}>
+                    <Button variant="primary">
+                      Continue Learning
+                    </Button>
+                  </Link>
                 ) : (
                   <Button
                     variant="primary"
-                    className="w-full mb-4"
                     onClick={handleEnroll}
                     isLoading={isEnrolling}
                   >
-                    {course.isEnrolled ? 'Go to Course' : course.isFree ? 'Enroll for Free' : 'Enroll Now'}
+                    {course.isFree ? 'Enroll for Free' : 'Enroll Now'}
                   </Button>
                 )}
                 
-                <p className="text-center text-sm text-gray-600 mb-6">
-                  {course.moneyBackGuarantee ? '30-Day Money-Back Guarantee' : 'Full lifetime access'}
-                </p>
+                <Button variant="outline" className="text-white border-white hover:bg-white/20">
+                  <svg className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                  </svg>
+                  Save
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Error message for enrollment */}
+      {enrollmentError && (
+        <div className="container mx-auto px-4 py-4">
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+            <span className="block sm:inline">{enrollmentError}</span>
+          </div>
+        </div>
+      )}
+      
+      {/* Course Content */}
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Column - Course Details */}
+          <div className="lg:w-8/12">
+            {/* Tabs */}
+            <Card className="mb-8">
+              <div className="border-b border-gray-200 mb-6">
+                <nav className="flex space-x-8" aria-label="Tabs">
+                  <button className="border-b-2 border-primary-500 py-4 px-1 text-sm font-medium text-primary-600">
+                    About
+                  </button>
+                  <button className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Curriculum
+                  </button>
+                  <button className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Instructor
+                  </button>
+                  <button className="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                    Reviews
+                  </button>
+                </nav>
+              </div>
+              
+              {/* About Tab Content */}
+              <div className="prose max-w-none">
+                <h2 className="text-2xl font-bold mb-4">About This Course</h2>
+                <div dangerouslySetInnerHTML={{ __html: course.description }} />
                 
-                <div className="border-t pt-6">
-                  <h3 className="font-semibold mb-4">This course includes:</h3>
-                  
-                  <ul className="space-y-3">
-                    <li className="flex items-center text-sm">
-                      <FaPlayCircle className="text-gray-500 mr-3" />
-                      <span>{course.videoDuration || '0 hours'} of on-demand video</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <FaBook className="text-gray-500 mr-3" />
-                      <span>{course.articlesCount || 0} articles</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <FaDownload className="text-gray-500 mr-3" />
-                      <span>{course.resourcesCount || 0} downloadable resources</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <FaClock className="text-gray-500 mr-3" />
-                      <span>Full lifetime access</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <FaMobileAlt className="text-gray-500 mr-3" />
-                      <span>Access on mobile and TV</span>
-                    </li>
-                    <li className="flex items-center text-sm">
-                      <FaCertificate className="text-gray-500 mr-3" />
-                      <span>Certificate of completion</span>
-                    </li>
-                  </ul>
-                </div>
+                {course.learningObjectives && course.learningObjectives.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-xl font-semibold mb-4">What You'll Learn</h3>
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {course.learningObjectives.map((objective, index) => (
+                        <li key={index} className="flex items-start">
+                          <svg className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span>{objective}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 
-                <div className="border-t border-b py-6 my-6">
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center"
-                    >
-                      <FaShare className="mr-1" /> Share
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center"
-                    >
-                      <FaGift className="mr-1" /> Gift
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex items-center"
-                    >
-                      <FaTag className="mr-1" /> Apply Coupon
-                    </Button>
+                {course.prerequisites && course.prerequisites.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-xl font-semibold mb-4">Prerequisites</h3>
+                    <ul className="list-disc pl-5 space-y-2 text-gray-700">
+                      {course.prerequisites.map((prerequisite, index) => (
+                        <li key={index}>{prerequisite}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </Card>
+          </div>
+          
+          {/* Right Column - Course Info Card */}
+          <div className="lg:w-4/12">
+            <div className="sticky top-24">
+              <Card className="mb-6">
+                <h3 className="text-lg font-semibold mb-4">Course Information</h3>
+                <ul className="space-y-3 text-sm">
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Duration:</span>
+                    <span className="font-medium">{course.duration} weeks</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Level:</span>
+                    <span className="font-medium">{course.level}</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Category:</span>
+                    <span className="font-medium">{course.category}</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Language:</span>
+                    <span className="font-medium">{course.language || 'English'}</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Students:</span>
+                    <span className="font-medium">{course.enrollmentCount || course.enrolledUsers?.length || 0}</span>
+                  </li>
+                  <li className="flex justify-between">
+                    <span className="text-gray-600">Last Updated:</span>
+                    <span className="font-medium">{new Date(course.updatedAt || course.createdAt).toLocaleDateString()}</span>
+                  </li>
+                </ul>
+                
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h4 className="font-medium mb-2">Share This Course</h4>
+                  <div className="flex space-x-3">
+                    <button className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                      </svg>
+                    </button>
+                    <button className="p-2 bg-blue-400 text-white rounded-full hover:bg-blue-500">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M23.953 4.57a10 10 0 01-2.825.775 4.958 4.958 0 002.163-2.723c-.951.555-2.005.959-3.127 1.184a4.92 4.92 0 00-8.384 4.482C7.69 8.095 4.067 6.13 1.64 3.162a4.822 4.822 0 00-.666 2.475c0 1.71.87 3.213 2.188 4.096a4.904 4.904 0 01-2.228-.616v.06a4.923 4.923 0 003.946 4.827 4.996 4.996 0 01-2.212.085 4.936 4.936 0 004.604 3.417 9.867 9.867 0 01-6.102 2.105c-.39 0-.779-.023-1.17-.067a13.995 13.995 0 007.557 2.209c9.053 0 13.998-7.496 13.998-13.985 0-.21 0-.42-.015-.63A9.935 9.935 0 0024 4.59z" />
+                      </svg>
+                    </button>
+                    <button className="p-2 bg-blue-700 text-white rounded-full hover:bg-blue-800">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                      </svg>
+                    </button>
+                    <button className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700">
+                      <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M12 0C5.374 0 0 5.374 0 12c0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.626-5.374-12-12-12z" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
-                
-                <div className="text-center">
-                  <h4 className="font-semibold mb-2">Training 5 or more people?</h4>
-                  <p className="text-sm text-gray-600 mb-3">
-                    Get your team access to 17,000+ top courses anytime, anywhere.
+              </Card>
+              
+              {/* CTA Card */}
+              {!isEnrolled && !isAuthor && !isInstructorOrAdmin && (
+                <Card className="bg-gradient-to-br from-primary-600 to-primary-700 text-white">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold">Ready to start learning?</h3>
+                    <div className="text-2xl font-bold">
+                      {course.isFree ? 'Free' : `$${course.price || '0.00'}`}
+                    </div>
+                  </div>
+                  <Button
+                    variant="light"
+                    className="w-full bg-white text-primary-700 hover:bg-gray-100"
+                    onClick={handleEnroll}
+                    isLoading={isEnrolling}
+                  >
+                    {course.isFree ? 'Enroll Now - Free' : 'Enroll Now'}
+                  </Button>
+                  <p className="text-sm mt-3 text-center text-white/80">
+                    {course.isFree ? 'Full access to course content' : '30-day money-back guarantee'}
                   </p>
-                  <Link to="/business" className="text-primary-600 hover:text-primary-700 font-medium">
-                    Try LearnHub Business
-                  </Link>
-                </div>
-              </div>
+                </Card>
+              )}
             </div>
           </div>
         </div>
