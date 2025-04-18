@@ -42,10 +42,14 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
 // @route   GET /api/courses/:id
 // @access  Public/Private (depending on course status)
 exports.getCourse = asyncHandler(async (req, res, next) => {
+  console.log("Querying course ID:", req.params.id);
+
   const course = await Course.findById(req.params.id)
     .populate('author', 'firstName lastName profileImage')
     .populate('lessons')
     .populate('quizzes');
+
+  console.log("Course found:", course);
 
   if (!course) {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
@@ -55,13 +59,13 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
   // 1. Published courses are visible to everyone
   // 2. Unpublished courses are only visible to their author, instructors, or admins
   if (!course.isPublished) {
-    // Check if user is logged in
     if (!req.user) {
       return next(new ErrorResponse(`Course not found`, 404));
     }
 
-    // Check if user is the author, admin, or instructor
     const authorId = course.author._id ? course.author._id.toString() : course.author.toString();
+    console.log("User:", req.user.id, "Author:", authorId, "Role:", req.user.role);
+
     if (req.user.role !== 'admin' && req.user.role !== 'instructor' && req.user.id !== authorId) {
       return next(new ErrorResponse(`Course not found`, 404));
     }
@@ -228,7 +232,7 @@ exports.publishCourse = asyncHandler(async (req, res, next) => {
 // @route   POST /api/courses/:id/enroll
 // @access  Private
 exports.enrollCourse = asyncHandler(async (req, res, next) => {
-  const course = await Course.findById(req.params.idd);
+  const course = await Course.findById(req.params.id);
 
   if (!course) {
     return next(new ErrorResponse('Course not found', 404));
