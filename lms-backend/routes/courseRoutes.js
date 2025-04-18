@@ -27,7 +27,15 @@ router.route('/')
     { path: 'author', select: 'firstName lastName' }
   ]), getCourses);
 
-router.route('/:id').get(getCourse);
+// Single GET /:id route with optional auth
+router.route('/:id')
+  .get((req, res, next) => {
+    // Apply auth middleware only if Authorization header is present
+    if (req.headers.authorization) {
+      return protect(req, res, next);
+    }
+    next();
+  }, getCourse);
 
 // Require authentication below this line
 router.use(protect);
@@ -69,8 +77,5 @@ router.route('/:id/photo')
     cloudStorage.upload.courseImage.single('file'),
     uploadCourseImage
   );
-
-  
-
 
 module.exports = router;
