@@ -114,19 +114,19 @@ const EditCourse = () => {
     shortDescription: Yup.string()
       .required('Short description is required')
       .max(200, 'Short description must be less than 200 characters'),
-    description: Yup.string()
-      .required('Description is required'),
-    category: Yup.string()
-      .required('Category is required'),
+    description: Yup.string().required('Description is required'),
+    category: Yup.string().required('Category is required'),
     level: Yup.string()
       .required('Level is required')
       .oneOf(['beginner', 'intermediate', 'advanced'], 'Invalid level'),
     price: Yup.number()
       .min(0, 'Price cannot be negative')
       .when('isFree', {
-        is: true,
-        then: Yup.number().oneOf([0], 'Price must be 0 for free courses')
+        is: (isFree) => isFree === true,
+        then: () => Yup.number().oneOf([0], 'Price must be 0 for free courses').required(),
+        otherwise: () => Yup.number().required('Price is required when not free'),
       }),
+    isFree: Yup.boolean().required('Specify if the course is free'),
     language: Yup.string().required('Language is required'),
     duration: Yup.number()
       .required('Duration is required')
@@ -138,19 +138,26 @@ const EditCourse = () => {
     learningObjectives: Yup.array().of(
       Yup.string().required('Learning objective cannot be empty')
     ),
-    modules: Yup.array().of(
-      Yup.object({
-        title: Yup.string().required('Module title is required'),
-        lessons: Yup.array().of(
-          Yup.object({
-            title: Yup.string().required('Lesson title is required'),
-            type: Yup.string().required('Lesson type is required')
-          })
-        ).min(1, 'At least one lesson is required')
-      })
-    ).min(1, 'At least one module is required')
+    modules: Yup.array()
+      .of(
+        Yup.object({
+          title: Yup.string().required('Module title is required'),
+          description: Yup.string(),
+          lessons: Yup.array()
+            .of(
+              Yup.object({
+                title: Yup.string().required('Lesson title is required'),
+                type: Yup.string().required('Lesson type is required'),
+                content: Yup.string(),
+                duration: Yup.number().min(0, 'Duration cannot be negative'),
+                isPreview: Yup.boolean(),
+              })
+            )
+            .min(1, 'At least one lesson is required'),
+        })
+      )
+      .min(1, 'At least one module is required'),
   });
-
   const handleThumbnailChange = (event, setFieldValue) => {
     const file = event.currentTarget.files[0];
     if (file) {

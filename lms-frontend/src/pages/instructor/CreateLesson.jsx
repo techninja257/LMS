@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
-import { FaUpload } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 import Card from '../../components/common/Card';
@@ -20,7 +19,6 @@ const CreateLesson = () => {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
 
@@ -44,26 +42,25 @@ const CreateLesson = () => {
 
   // Validation schema
   const validationSchema = Yup.object({
-    title: Yup.string()
-      .required('Title is required')
-      .max(100, 'Title must be less than 100 characters'),
-    description: Yup.string()
-      .required('Description is required'),
+    title: Yup.string().required('Lesson title is required'),
+    description: Yup.string().required('Lesson description is required'),
     contentType: Yup.string()
-      .required('Content type is required')
-      .oneOf(['text', 'video', 'pdf', 'mixed'], 'Invalid content type'),
-    content: Yup.string()
-      .when('contentType', {
-        is: 'text',
-        then: Yup.string().required('Content is required for text lessons')
-      }),
+      .required('Lesson type is required')
+      .oneOf(['video', 'text', 'pdf', 'mixed'], 'Invalid lesson type'),
+    content: Yup.string().when('contentType', {
+      is: (contentType) => ['text', 'mixed'].includes(contentType),
+      then: () => Yup.string().required('Content is required for this lesson type'),
+      otherwise: () => Yup.string().nullable(),
+    }),
     requiredTimeToComplete: Yup.number()
-      .required('Required time to complete is required')
-      .min(1, 'Time must be at least 1 minute')
-      .integer('Time must be a whole number'),
-    order: Yup.number()
-      .nullable()
-      .integer('Order must be a whole number')
+      .min(0, 'Duration cannot be negative')
+      .required('Duration is required'),
+    pageCount: Yup.number().when('contentType', {
+      is: (contentType) => contentType === 'pdf',
+      then: () => Yup.number().min(1, 'Page count must be at least 1').required('Page count is required for PDF'),
+      otherwise: () => Yup.number().nullable(),
+    }),
+    order: Yup.number().min(1, 'Order must be at least 1').nullable(),
   });
 
   // Handle file change
@@ -102,48 +99,6 @@ const CreateLesson = () => {
         setFieldValue('requiredTimeToComplete', durationInMinutes);
       };
       setFilePreview('/assets/images/video-icon.png');
-    }
-  };
-
-  // Handle form submission
-  const handleSubmit = async (values, { resetForm }) => {
-    try {
-      setIsSubmitting(true);
-      
-      // Create the lesson
-      const lessonData = {
-        title: values.title,
-        description: values.description,
-        contentType: values.contentType,
-        content: values.content,
-        requiredTimeToComplete: values.requiredTimeToComplete,
-        order: values.order || undefined,
-        isPublished: values.isPublished || false
-      };
-      
-      const lesson = await createLesson(courseId, lessonData);
-      
-      // If there's a file, upload it
-      if (file) {
-        const fileMetadata = {};
-        
-        // Add metadata based on file type
-        if (values.contentType === 'video') {
-          fileMetadata.duration = values.requiredTimeToComplete;
-        } else if (values.contentType === 'pdf') {
-          fileMetadata.pageCount = values.pageCount || 1;
-        }
-        
-        await uploadLessonMaterial(lesson._id, file, fileMetadata);
-      }
-      
-      toast.success('Lesson created successfully!');
-      navigate(`/instructor/courses/${courseId}/lessons`);
-    } catch (err) {
-      console.error('Error creating lesson:', err);
-      toast.error(err.response?.data?.message || err.message || 'Failed to create lesson');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -224,7 +179,7 @@ const CreateLesson = () => {
         <Card className="mb-8">
           <div className="flex items-start">
             <img 
-              src={course.coverImage || '/assets/images/default-course.jpg'} 
+              src={course.thumbnailImage || '/assets/images/default-course.jpg'} 
               alt={course.title}
               className="h-16 w-24 object-cover rounded mr-4"
             />
@@ -251,12 +206,42 @@ const CreateLesson = () => {
             requiredTimeToComplete: 15,
             pageCount: 1,
             order: '',
-            isPublished: false
           }}
           validationSchema={validationSchema}
-          onSubmit={handleSubmit}
+          onSubmit={async (values, { resetForm, setSubmitting }) => {
+            console.log('CreateLesson onSubmit:', values); // Debug log
+            try {
+              setSubmitting(true);
+              const lessonData = {
+                title: values.title,
+                description: values.description,
+                contentType: values.contentType,
+                content: values.content,
+                requiredTimeToComplete: values.requiredTimeToComplete,
+                order: values.order || undefined,
+                isPublished: false, // Hardcode to false for admin approval
+              };
+              const lesson = await createLesson(courseId, lessonData);
+              if (file) {
+                const fileMetadata = {};
+                if (values.contentType === 'video') {
+                  fileMetadata.duration = values.requiredTimeToComplete;
+                } else if (values.contentType === 'pdf') {
+                  fileMetadata.pageCount = values.pageCount || 1;
+                }
+                await uploadLessonMaterial(lesson._id, file, fileMetadata);
+              }
+              toast.success('Lesson created successfully!');
+              navigate(`/instructor/courses/${courseId}/lessons`);
+            } catch (err) {
+              console.error('Error creating lesson:', err);
+              toast.error(err.response?.data?.message || err.message || 'Failed to create lesson');
+            } finally {
+              setSubmitting(false);
+            }
+          }}
         >
-          {({ values, setFieldValue, errors, touched }) => (
+          {({ values, setFieldValue, errors, touched, isSubmitting }) => (
             <Form className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -317,19 +302,8 @@ const CreateLesson = () => {
                   />
                 </div>
                 
-                <div className="flex items-end">
-                  <label className="flex items-center">
-                    <Field
-                      type="checkbox"
-                      name="isPublished"
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">Publish this lesson</span>
-                  </label>
-                </div>
-                
                 {/* Content based on contentType */}
-                {values.contentType === 'text' && (
+                {['text', 'mixed'].includes(values.contentType) && (
                   <div className="md:col-span-2">
                     <FormTextarea
                       id="content"
@@ -387,28 +361,10 @@ const CreateLesson = () => {
                           type="number"
                           label="Number of Pages"
                           min={1}
-                          helpText="Approximate number of pages in the PDF"
+                          required
                         />
                       </div>
                     )}
-                  </div>
-                )}
-                
-                {values.contentType === 'mixed' && (
-                  <div className="md:col-span-2">
-                    <FormTextarea
-                      id="content"
-                      name="content"
-                      label="Lesson Content"
-                      placeholder="Enter your lesson content here. You can use Markdown formatting."
-                      rows={10}
-                      required
-                    />
-                    <div className="mt-4">
-                      <p className="text-sm text-gray-600 mb-2">
-                        For mixed content lessons, first save the text content. Then you can add additional materials from the lesson edit page.
-                      </p>
-                    </div>
                   </div>
                 )}
               </div>
@@ -426,7 +382,7 @@ const CreateLesson = () => {
                   type="submit"
                   variant="primary"
                   isLoading={isSubmitting}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || Object.keys(errors).length > 0}
                 >
                   Create Lesson
                 </Button>
