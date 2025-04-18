@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 
@@ -6,14 +6,21 @@ const Sidebar = () => {
   const { user } = useAuth();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(() => {
+    // Initialize from localStorage, default to true (minimized)
+    return localStorage.getItem('sidebarMinimized') !== 'false';
+  });
+
+  // Save minimized state to localStorage
+  useEffect(() => {
+    localStorage.setItem('sidebarMinimized', isMinimized);
+  }, [isMinimized]);
 
   // Check if the given path is active
   const isActive = (path) => {
-    // If link is home and path is exactly home
     if (path === '/dashboard' && location.pathname === '/dashboard') {
       return true;
     }
-    // For other links, check if the pathname starts with the path
     return location.pathname.startsWith(path);
   };
 
@@ -116,11 +123,21 @@ const Sidebar = () => {
       </button>
 
       {/* Sidebar navigation */}
-      <aside className={`fixed top-0 left-0 z-10 h-full w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
+      <aside
+        className={`group fixed top-0 left-0 z-20 h-full bg-white shadow-lg transform transition-all duration-300 ease-in-out 
+          ${mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+          ${isMinimized ? 'w-16 md:w-16' : 'w-64 md:w-64'}
+          hover:md:w-64`}
+      >
         <div className="h-full flex flex-col">
           {/* Sidebar header */}
-          <div className="p-6 border-b border-gray-200">
-            <h1 className="text-xl font-bold text-primary-600">LearnHub LMS</h1>
+          <div className="p-4 border-b border-gray-200 flex items-center">
+            <h1
+              className={`text-xl font-bold text-primary-600 transition-opacity duration-300 
+                ${isMinimized ? 'opacity-0 md:group-hover:opacity-100' : 'opacity-100'}`}
+            >
+              LearnHub LMS
+            </h1>
           </div>
 
           {/* Navigation links */}
@@ -130,15 +147,20 @@ const Sidebar = () => {
                 <li key={link.to}>
                   <Link
                     to={link.to}
-                    className={`px-6 py-3 flex items-center space-x-3 ${
-                      isActive(link.to)
+                    className={`px-4 py-3 flex items-center space-x-3 
+                      ${isActive(link.to)
                         ? 'bg-primary-50 text-primary-600 border-r-4 border-primary-600'
-                        : 'text-gray-700 hover:bg-gray-100'
-                    }`}
+                        : 'text-gray-700 hover:bg-gray-100'}
+                      transition-all duration-300`}
                     onClick={() => setMobileOpen(false)}
                   >
                     <span className="flex-shrink-0">{icons[link.icon]}</span>
-                    <span>{link.label}</span>
+                    <span
+                      className={`transition-opacity duration-300 
+                        ${isMinimized ? 'opacity-0 md:group-hover:opacity-100' : 'opacity-100'}`}
+                    >
+                      {link.label}
+                    </span>
                   </Link>
                 </li>
               ))}
@@ -149,13 +171,19 @@ const Sidebar = () => {
           <div className="p-4 border-t border-gray-200">
             <Link
               to="/help"
-              className="flex items-center space-x-3 text-gray-700 hover:text-primary-600"
+              className={`flex items-center space-x-3 text-gray-700 hover:text-primary-600 
+                transition-all duration-300`}
               onClick={() => setMobileOpen(false)}
             >
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span>Help Center</span>
+              <span
+                className={`transition-opacity duration-300 
+                  ${isMinimized ? 'opacity-0 md:group-hover:opacity-100' : 'opacity-100'}`}
+              >
+                Help Center
+              </span>
             </Link>
           </div>
         </div>
@@ -164,7 +192,7 @@ const Sidebar = () => {
       {/* Overlay for mobile */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-0"
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-10"
           onClick={() => setMobileOpen(false)}
         ></div>
       )}

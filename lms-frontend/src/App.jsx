@@ -32,7 +32,7 @@ import ManageUsers from './pages/admin/ManageUsers';
 import ManageCourses from './pages/admin/ManageCourses';
 import CourseApprovals from './pages/admin/CourseApprovals';
 import UserCreate from './pages/admin/UserCreate';
-import EditCourse from './pages/admin/EditCourse'; // Added for admin course editing
+import EditCourse from './pages/admin/EditCourse';
 
 // Instructor Pages
 import InstructorDashboard from './pages/instructor/Dashboard';
@@ -68,7 +68,7 @@ function App() {
       <div className="flex flex-1">
         {user && <Sidebar />}
 
-        <main className={`flex-1 p-4 ${user ? 'ml-0 md:ml-64' : ''}`}>
+        <main className={`flex-1 p-4 ${user ? 'ml-0 md:ml-16' : ''}`}>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
@@ -94,7 +94,7 @@ function App() {
             <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
             <Route path="/admin/users/create" element={<AdminRoute><UserCreate /></AdminRoute>} />
             <Route path="/admin/courses" element={<AdminRoute><ManageCourses /></AdminRoute>} />
-            <Route path="/admin/courses/:courseId/edit" element={<AdminRoute><EditCourse /></AdminRoute>} /> {/* Added */}
+            <Route path="/admin/courses/:courseId/edit" element={<AdminRoute><EditCourse /></AdminRoute>} />
             <Route path="/admin/course-approvals" element={<AdminRoute><CourseApprovals /></AdminRoute>} />
 
             {/* Instructor Routes */}
