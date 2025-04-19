@@ -7,6 +7,9 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const multer = require('multer');
 
+// Clear module cache for lessonController
+delete require.cache[require.resolve('./controllers/lessonController')];
+
 // Load environment variables
 dotenv.config();
 
@@ -24,7 +27,6 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
 
 // Import nested routes
-const courseLessonRoutes = require('./routes/courseLessonRoutes');
 const courseQuizRoutes = require('./routes/courseQuizRoutes');
 const courseCertificateRoutes = require('./routes/courseCertificateRoutes');
 
@@ -60,7 +62,6 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/certificates', certificateRoutes);
 
 // Mount nested routes
-app.use('/api/courses/:courseId/lessons', courseLessonRoutes);
 app.use('/api/courses/:courseId/quizzes', courseQuizRoutes);
 app.use('/api/courses/:courseId/certificate', courseCertificateRoutes);
 

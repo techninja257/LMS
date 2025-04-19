@@ -1,39 +1,23 @@
 const express = require('express');
-const {
-  getLesson,
-  updateLesson,
-  deleteLesson,
-  uploadLessonMaterial,
-  completeLesson
-} = require('../controllers/lessonController');
-
-// Include auth middleware
-const { protect } = require('../middleware/auth');
-const authorize = require('../middleware/roleAccess');
-
-// Include file upload middleware
-const cloudStorage = require('../config/cloudStorage');
-
 const router = express.Router();
+const auth = require('../middleware/auth');
+const upload = require('../middleware/upload');
+const { createLesson, uploadMaterial, getCourseLessons, completeLesson } = require('../controllers/lessonController');
 
-// Public routes - none for individual lessons
+// Log to verify imports
+console.log('Imported lessonController in lessonRoutes:', {
+  createLesson: typeof createLesson,
+  uploadMaterial: typeof uploadMaterial,
+  getCourseLessons: typeof getCourseLessons,
+  completeLesson: typeof completeLesson
+});
 
-// Protected routes
-router.use(protect);
+// Course-specific lesson routes
+router.post('/courses/:courseId/lessons', auth, createLesson);
+router.get('/courses/:courseId/lessons', auth, getCourseLessons);
 
-router.route('/:id')
-  .get(getLesson)
-  .put(authorize('instructor', 'admin'), updateLesson)
-  .delete(authorize('instructor', 'admin'), deleteLesson);
-
-router.route('/:id/material')
-  .put(
-    authorize('instructor', 'admin'),
-    cloudStorage.upload.lessonMaterial.single('file'),
-    uploadLessonMaterial
-  );
-
-router.route('/:id/complete')
-  .put(completeLesson);
+// Lesson-specific routes
+router.post('/:lessonId/material', auth, upload.single('file'), uploadMaterial);
+router.patch('/:lessonId/complete', auth, completeLesson);
 
 module.exports = router;

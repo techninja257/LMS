@@ -1,83 +1,41 @@
-import api from './auth'; // Import the configured axios instance
+import axios from 'axios';
 
-// Get all lessons for a course
-export const getCourseLessons = async (courseId) => {
-  try {
-    const response = await api.get(`/api/courses/${courseId}/lessons`);
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// Get single lesson
-export const getLesson = async (lessonId) => {
-  try {
-    const response = await api.get(`/api/lessons/${lessonId}`);
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-// Create lesson (instructor, admin)
 export const createLesson = async (courseId, lessonData) => {
-  try {
-    const response = await api.post(`/api/courses/${courseId}/lessons`, lessonData);
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await api.post(`/lessons/courses/${courseId}/lessons`, lessonData);
+  return response.data;
 };
 
-// Update lesson (instructor, admin)
+export const uploadLessonMaterial = async (lessonId, file, metadata) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('metadata', JSON.stringify(metadata));
+  const response = await axios.post(`/api/lessons/${lessonId}/material`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  });
+  return response.data;
+};
+
+export const getLesson = async (lessonId) => {
+  const response = await axios.get(`/api/lessons/${lessonId}`);
+  return response.data;
+};
+
 export const updateLesson = async (lessonId, lessonData) => {
-  try {
-    const response = await api.put(`/api/lessons/${lessonId}`, lessonData);
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axios.put(`/api/lessons/${lessonId}`, lessonData);
+  return response.data;
 };
 
-// Delete lesson (instructor, admin)
 export const deleteLesson = async (lessonId) => {
-  try {
-    const response = await api.delete(`/api/lessons/${lessonId}`);
-    return response.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await api.delete(`/lessons/${lessonId}`);
+  return response.data;
 };
 
-// Upload lesson material (PDF, video)
-export const uploadLessonMaterial = async (lessonId, file, metadata = {}) => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
-    
-    // Add any metadata like duration or page count
-    Object.entries(metadata).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    const response = await api.put(`/api/lessons/${lessonId}/material`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    });
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
+export const getCourseLessons = async (courseId) => {
+  const response = await api.get(`/lessons/courses/${courseId}/lessons`);
+  return response.data;
 };
 
-// Mark lesson as completed
 export const completeLesson = async (lessonId) => {
-  try {
-    const response = await api.put(`/api/lessons/${lessonId}/complete`);
-    return response.data.data;
-  } catch (error) {
-    throw error;
-  }
+  const response = await axios.patch(`/api/lessons/${lessonId}/complete`);
+  return response.data;
 };

@@ -3,12 +3,15 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { toast } from 'react-toastify';
+import { DndProvider } from 'react-dnd';
+import { HTML5Backend } from 'react-dnd-html5-backend';
 
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import FormInput from '../../components/common/FormInput';
 import FormSelect from '../../components/common/FormSelect';
 import FormTextarea from '../../components/common/FormTextarea';
+import MarkdownPreview from '../../components/common/MarkdownPreview';
 import { getCourse } from '../../api/courses';
 import { createLesson, uploadLessonMaterial } from '../../api/lessons';
 
@@ -21,7 +24,7 @@ const CreateLesson = () => {
   const [file, setFile] = useState(null);
   const [filePreview, setFilePreview] = useState(null);
 
-  // Fetch course data
+  // Fetch course data with modules
   useEffect(() => {
     const fetchCourse = async () => {
       try {
@@ -35,7 +38,6 @@ const CreateLesson = () => {
         setLoading(false);
       }
     };
-
     fetchCourse();
   }, [courseId]);
 
@@ -43,9 +45,10 @@ const CreateLesson = () => {
   const validationSchema = Yup.object({
     title: Yup.string().required('Lesson title is required'),
     description: Yup.string().required('Lesson description is required'),
+    moduleId: Yup.string().required('Module selection is required'),
     contentType: Yup.string()
       .required('Lesson type is required')
-      .oneOf(['video', 'text', 'pdf', 'mixed'], 'Invalid lesson type'),
+      .oneOf(['text', 'video', 'pdf', 'mixed'], 'Invalid lesson type'),
     content: Yup.string().when('contentType', {
       is: (contentType) => ['text', 'mixed'].includes(contentType),
       then: () => Yup.string().required('Content is required for this lesson type'),
@@ -57,14 +60,19 @@ const CreateLesson = () => {
         .required('A file is required for this lesson type')
         .test('fileType', 'Invalid file type', (value) => {
           if (!value) return false;
-          if (value.type.startsWith('video/')) return true;
-          if (value.type === 'application/pdf' || value.name.endsWith('.pdf')) return true;
+          if (contentType === 'video' && value.type.startsWith('video/')) return true;
+          if (contentType === 'pdf' && (value.type === 'application/pdf' || value.name.endsWith('.pdf'))) return true;
           return false;
+        })
+        .test('fileSize', 'File size too large', (value) => {
+          if (!value) return false;
+          const maxSize = contentType === 'video' ? 100 * 1024 * 1024 : 20 * 1024 * 1024; // 100MB for video, 20MB for PDF
+          return value.size <= maxSize;
         }),
       otherwise: () => Yup.mixed().nullable(),
     }),
     requiredTimeToComplete: Yup.number()
-      .min(0, 'Duration cannot be negative')
+      .min(1, 'Duration must be at least 1 minute')
       .required('Duration is required'),
     pageCount: Yup.number().when('contentType', {
       is: (contentType) => contentType === 'pdf',
@@ -74,8 +82,8 @@ const CreateLesson = () => {
     order: Yup.number().min(1, 'Order must be at least 1').nullable(),
   });
 
-  // Handle file change
-  const handleFileChange = (e, setFieldValue, contentType) => {
+  // Handle file change with drag-and-drop support
+  const handleFileChange = (e, setFieldValue, values) => {
     const selectedFile = e.target.files[0];
     if (!selectedFile) {
       setFieldValue('file', null);
@@ -84,16 +92,15 @@ const CreateLesson = () => {
       return;
     }
 
-    // Validate file type based on content type
     let isValidType = false;
-    if (contentType === 'video' && selectedFile.type.startsWith('video/')) {
+    if (values.contentType === 'video' && selectedFile.type.startsWith('video/')) {
       isValidType = true;
-    } else if (contentType === 'pdf' && (selectedFile.type === 'application/pdf' || selectedFile.name.endsWith('.pdf'))) {
+    } else if (values.contentType === 'pdf' && (selectedFile.type === 'application/pdf' || selectedFile.name.endsWith('.pdf'))) {
       isValidType = true;
     }
 
     if (!isValidType) {
-      toast.error(`Invalid file type for ${contentType} content`);
+      toast.error(`Invalid file type for ${values.contentType} content`);
       setFieldValue('file', null);
       setFile(null);
       setFilePreview(null);
@@ -103,10 +110,9 @@ const CreateLesson = () => {
     setFile(selectedFile);
     setFieldValue('file', selectedFile);
 
-    // Create preview
-    if (contentType === 'pdf') {
+    if (values.contentType === 'pdf') {
       setFilePreview('/assets/images/pdf-icon.png');
-    } else if (contentType === 'video') {
+    } else if (values.contentType === 'video') {
       const videoElement = document.createElement('video');
       videoElement.src = URL.createObjectURL(selectedFile);
       videoElement.onloadedmetadata = () => {
@@ -117,11 +123,20 @@ const CreateLesson = () => {
     }
   };
 
+  // Handle drag-and-drop
+  const handleDrop = (e, setFieldValue, values) => {
+    e.preventDefault();
+    const selectedFile = e.dataTransfer.files[0];
+    if (selectedFile) {
+      handleFileChange({ target: { files: [selectedFile] } }, setFieldValue, values);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
-          <Link 
+          <Link
             to={`/instructor/courses/${courseId}/lessons`}
             className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
           >
@@ -130,10 +145,8 @@ const CreateLesson = () => {
             </svg>
             Back to Lessons
           </Link>
-          
           <h1 className="text-2xl font-bold text-gray-900">Create New Lesson</h1>
         </div>
-        
         <div className="flex justify-center py-12">
           <div className="w-16 h-16 border-t-4 border-primary-500 border-solid rounded-full animate-spin"></div>
         </div>
@@ -145,7 +158,7 @@ const CreateLesson = () => {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center mb-6">
-          <Link 
+          <Link
             to={`/instructor/courses/${courseId}/lessons`}
             className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
           >
@@ -154,16 +167,14 @@ const CreateLesson = () => {
             </svg>
             Back to Lessons
           </Link>
-          
           <h1 className="text-2xl font-bold text-gray-900">Create New Lesson</h1>
         </div>
-        
         <Card className="bg-danger-50 text-danger-700 p-6">
           <h2 className="text-xl font-semibold mb-2">Error loading course</h2>
           <p>{error}</p>
-          <Button 
-            variant="primary" 
-            className="mt-4" 
+          <Button
+            variant="primary"
+            className="mt-4"
             onClick={() => navigate(`/instructor/courses/${courseId}/lessons`)}
           >
             Back to Lessons
@@ -174,265 +185,312 @@ const CreateLesson = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center mb-6">
-        <Link 
-          to={`/instructor/courses/${courseId}/lessons`}
-          className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
-        >
-          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Lessons
-        </Link>
-        
-        <h1 className="text-2xl font-bold text-gray-900">Create New Lesson</h1>
-      </div>
-      
-      {/* Course Info */}
-      {course && (
-        <Card className="mb-8">
-          <div className="flex items-start">
-            <img 
-              src={course.thumbnailImage || '/assets/images/default-course.jpg'} 
-              alt={course.title}
-              className="h-16 w-24 object-cover rounded mr-4"
-            />
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
-              <div className="flex items-center mt-1 text-sm text-gray-600">
-                <span>{course.category}</span>
-                <span className="mx-2">•</span>
-                <span>{course.level}</span>
+    <DndProvider backend={HTML5Backend}>
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex items-center mb-6">
+          <Link
+            to={`/instructor/courses/${courseId}/lessons`}
+            className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Lessons
+          </Link>
+          <h1 className="text-2xl font-bold text-gray-900">Create New Lesson</h1>
+        </div>
+
+        {/* Course Info */}
+        {course && (
+          <Card className="mb-8">
+            <div className="flex items-start">
+              <img
+                src={course.thumbnailImage || '/assets/images/default-course.jpg'}
+                alt={course.title}
+                className="h-16 w-24 object-cover rounded mr-4"
+              />
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">{course.title}</h2>
+                <div className="flex items-center mt-1 text-sm text-gray-600">
+                  <span>{course.category}</span>
+                  <span className="mx-2">•</span>
+                  <span>{course.level}</span>
+                </div>
               </div>
             </div>
-          </div>
-        </Card>
-      )}
-      
-      {/* Lesson Form */}
-      <Card>
-        <Formik
-          initialValues={{
-            title: '',
-            description: '',
-            contentType: 'text',
-            content: '',
-            file: null,
-            requiredTimeToComplete: 15,
-            pageCount: 1,
-            order: '',
-          }}
-          validationSchema={validationSchema}
-          onSubmit={async (values, { resetForm, setSubmitting }) => {
-            console.log('CreateLesson onSubmit:', values); // Debug log
-            try {
-              setSubmitting(true);
-              const lessonData = {
-                title: values.title,
-                description: values.description,
-                contentType: values.contentType,
-                content: values.content,
-                requiredTimeToComplete: values.requiredTimeToComplete,
-                order: values.order || undefined,
-                isPublished: false, // Hardcode to false for admin approval
-              };
-              console.log('Submitting lessonData:', lessonData); // Debug log
-              const lesson = await createLesson(courseId, lessonData);
-              console.log('Lesson created:', lesson); // Debug log
-              if (file) {
-                const fileMetadata = {};
-                if (values.contentType === 'video') {
-                  fileMetadata.duration = values.requiredTimeToComplete;
-                } else if (values.contentType === 'pdf') {
-                  fileMetadata.pageCount = values.pageCount || 1;
+          </Card>
+        )}
+
+        {/* Lesson Form */}
+        <Card>
+          <Formik
+            initialValues={{
+              title: '',
+              description: '',
+              moduleId: '',
+              contentType: 'text',
+              content: '',
+              file: null,
+              requiredTimeToComplete: 15,
+              pageCount: 1,
+              order: '',
+            }}
+            validationSchema={validationSchema}
+            onSubmit={async (values, { resetForm, setSubmitting }) => {
+              console.log('CreateLesson onSubmit:', values);
+              try {
+                setSubmitting(true);
+                const lessonData = {
+                  title: values.title,
+                  description: values.description,
+                  moduleId: values.moduleId,
+                  contentType: values.contentType,
+                  content: values.content,
+                  requiredTimeToComplete: values.requiredTimeToComplete,
+                  pageCount: values.pageCount,
+                  order: values.order || undefined,
+                  isPublished: false,
+                };
+                console.log('Submitting lessonData:', lessonData);
+                const lesson = await createLesson(courseId, lessonData);
+                console.log('Lesson created:', lesson);
+                if (file) {
+                  const fileMetadata = {};
+                  if (values.contentType === 'video') {
+                    fileMetadata.duration = values.requiredTimeToComplete;
+                  } else if (values.contentType === 'pdf') {
+                    fileMetadata.pageCount = values.pageCount || 1;
+                  }
+                  console.log('Uploading file with metadata:', fileMetadata);
+                  await uploadLessonMaterial(lesson._id, file, fileMetadata);
+                  console.log('File uploaded successfully');
                 }
-                console.log('Uploading file with metadata:', fileMetadata); // Debug log
-                await uploadLessonMaterial(lesson._id, file, fileMetadata);
-                console.log('File uploaded successfully'); // Debug log
+                toast.success('Lesson created successfully!');
+                navigate(`/instructor/courses/${courseId}/lessons`);
+              } catch (err) {
+                console.error('Error creating lesson:', err);
+                toast.error(err.response?.data?.message || err.message || 'Failed to create lesson');
+              } finally {
+                setSubmitting(false);
               }
-              toast.success('Lesson created successfully!');
-              navigate(`/instructor/courses/${courseId}/lessons`);
-            } catch (err) {
-              console.error('Error creating lesson:', err);
-              toast.error(err.response?.data?.message || err.message || 'Failed to create lesson');
-            } finally {
-              setSubmitting(false);
-            }
-          }}
-          validateOnMount
-        >
-          {({ values, setFieldValue, errors, touched, isSubmitting }) => (
-            <Form className="space-y-6">
-              {/* Debug validation errors */}
-              {Object.keys(errors).length > 0 && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
-                  <strong>Form Errors:</strong>
-                  <ul className="list-disc pl-5">
-                    {Object.entries(errors).map(([field, error]) => (
-                      <li key={field}>{field}: {error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="md:col-span-2">
-                  <FormInput
-                    id="title"
-                    name="title"
-                    label="Lesson Title"
-                    placeholder="Enter a descriptive title for your lesson"
-                    required
-                  />
-                  <ErrorMessage name="title" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <FormTextarea
-                    id="description"
-                    name="description"
-                    label="Lesson Description"
-                    placeholder="Provide a brief description of what students will learn in this lesson"
-                    rows={3}
-                    required
-                  />
-                  <ErrorMessage name="description" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-                
-                <div>
-                  <FormSelect
-                    id="contentType"
-                    name="contentType"
-                    label="Content Type"
-                    options={[
-                      { value: 'text', label: 'Text' },
-                      { value: 'video', label: 'Video' },
-                      { value: 'pdf', label: 'PDF' },
-                      { value: 'mixed', label: 'Mixed Content' }
-                    ]}
-                    required
-                  />
-                  <ErrorMessage name="contentType" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-                
-                <div>
-                  <FormInput
-                    id="requiredTimeToComplete"
-                    name="requiredTimeToComplete"
-                    type="number"
-                    label="Estimated Time to Complete (minutes)"
-                    min={1}
-                    required
-                  />
-                  <ErrorMessage name="requiredTimeToComplete" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-                
-                <div>
-                  <FormInput
-                    id="order"
-                    name="order"
-                    type="number"
-                    label="Order in Course (optional)"
-                    helpText="Leave blank for automatic ordering"
-                    min={1}
-                  />
-                  <ErrorMessage name="order" component="div" className="mt-1 text-sm text-red-600" />
-                </div>
-                
-                {/* Content based on contentType */}
-                {['text', 'mixed'].includes(values.contentType) && (
+            }}
+            validateOnMount
+          >
+            {({ values, setFieldValue, errors, touched, isSubmitting }) => (
+              <Form className="space-y-6">
+                {/* Debug validation errors */}
+                {Object.keys(errors).length > 0 && (
+                  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                    <strong>Form Errors:</strong>
+                    <ul className="list-disc pl-5">
+                      {Object.entries(errors).map(([field, error]) => (
+                        <li key={field}>{field}: {error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="md:col-span-2">
-                    <FormTextarea
-                      id="content"
-                      name="content"
-                      label="Lesson Content"
-                      placeholder="Enter your lesson content here. You can use Markdown formatting."
-                      rows={10}
+                    <FormInput
+                      id="title"
+                      name="title"
+                      label="Lesson Title"
+                      placeholder="Enter a descriptive title for your lesson"
                       required
                     />
-                    <ErrorMessage name="content" component="div" className="mt-1 text-sm text-red-600" />
+                    <ErrorMessage name="title" component="div" className="mt-1 text-sm text-red-600" />
                   </div>
-                )}
-                
-                {(values.contentType === 'video' || values.contentType === 'pdf') && (
+
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {values.contentType === 'video' ? 'Upload Video' : 'Upload PDF'} <span className="text-red-600">*</span>
-                    </label>
-                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                      <div className="space-y-1 text-center">
-                        {filePreview ? (
-                          <div className="flex flex-col items-center">
-                            <img src={filePreview} alt="File preview" className="h-24 w-24 object-contain mb-2" />
-                            <p className="text-sm text-gray-500">{file?.name}</p>
-                          </div>
-                        ) : (
-                          <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                            <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-                          </svg>
-                        )}
-                        <div className="flex justify-center text-sm text-gray-600">
-                          <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500">
-                            <span>{file ? 'Change file' : 'Upload a file'}</span>
-                            <input 
-                              id="file-upload" 
-                              name="file-upload" 
-                              type="file" 
-                              className="sr-only" 
-                              accept={values.contentType === 'video' ? 'video/*' : 'application/pdf'}
-                              onChange={(e) => handleFileChange(e, setFieldValue, values.contentType)}
-                            />
-                          </label>
+                    <FormTextarea
+                      id="description"
+                      name="description"
+                      label="Lesson Description"
+                      placeholder="Provide a brief description of what students will learn"
+                      rows={3}
+                      required
+                    />
+                    <ErrorMessage name="description" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+
+                  <div>
+                    <FormSelect
+                      id="moduleId"
+                      name="moduleId"
+                      label="Module"
+                      options={[
+                        { value: '', label: 'Select a module' },
+                        ...(course?.modules?.map((module) => ({
+                          value: module._id,
+                          label: module.title,
+                        })) || []),
+                      ]}
+                      required
+                    />
+                    <ErrorMessage name="moduleId" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+
+                  <div>
+                    <FormSelect
+                      id="contentType"
+                      name="contentType"
+                      label="Content Type"
+                      options={[
+                        { value: 'text', label: 'Text' },
+                        { value: 'video', label: 'Video' },
+                        { value: 'pdf', label: 'PDF' },
+                        { value: 'mixed', label: 'Mixed Content' },
+                      ]}
+                      required
+                    />
+                    <ErrorMessage name="contentType" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+
+                  <div>
+                    <FormInput
+                      id="requiredTimeToComplete"
+                      name="requiredTimeToComplete"
+                      type="number"
+                      label="Estimated Time to Complete (minutes)"
+                      min={1}
+                      required
+                    />
+                    <ErrorMessage name="requiredTimeToComplete" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+
+                  <div>
+                    <FormInput
+                      id="order"
+                      name="order"
+                      type="number"
+                      label="Order in Module (optional)"
+                      helpText="Leave blank for automatic ordering"
+                      min={1}
+                    />
+                    <ErrorMessage name="order" component="div" className="mt-1 text-sm text-red-600" />
+                  </div>
+
+                  {/* Content for text/mixed */}
+                  {['text', 'mixed'].includes(values.contentType) && (
+                    <div className="md:col-span-2">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <FormTextarea
+                            id="content"
+                            name="content"
+                            label="Lesson Content (Markdown)"
+                            placeholder="Enter your lesson content here. Use Markdown formatting."
+                            rows={10}
+                            required
+                          />
+                          <ErrorMessage name="content" component="div" className="mt-1 text-sm text-red-600" />
                         </div>
-                        <p className="text-xs text-gray-500">
-                          {values.contentType === 'video' 
-                            ? 'MP4, WebM, or OGG up to 100MB' 
-                            : 'PDF up to 20MB'}
-                        </p>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Content Preview</label>
+                          <MarkdownPreview content={values.content} />
+                        </div>
                       </div>
                     </div>
-                    <ErrorMessage name="file" component="div" className="mt-1 text-sm text-red-600" />
-                    {values.contentType === 'pdf' && (
-                      <div className="mt-2">
-                        <FormInput
-                          id="pageCount"
-                          name="pageCount"
-                          type="number"
-                          label="Number of Pages"
-                          min={1}
-                          required
-                        />
-                        <ErrorMessage name="pageCount" component="div" className="mt-1 text-sm text-red-600" />
+                  )}
+
+                  {/* File upload for video/pdf */}
+                  {(values.contentType === 'video' || values.contentType === 'pdf') && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        {values.contentType === 'video' ? 'Upload Video' : 'Upload PDF'} <span className="text-red-600">*</span>
+                      </label>
+                      <div
+                        className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md"
+                        onDrop={(e) => handleDrop(e, setFieldValue, values)}
+                        onDragOver={(e) => e.preventDefault()}
+                      >
+                        <div className="space-y-1 text-center">
+                          {filePreview ? (
+                            <div className="flex flex-col items-center">
+                              <img src={filePreview} alt="File preview" className="h-24 w-24 object-contain mb-2" />
+                              <p className="text-sm text-gray-500">{file?.name}</p>
+                            </div>
+                          ) : (
+                            <svg
+                              className="mx-auto h-12 w-12 text-gray-400"
+                              stroke="currentColor"
+                              fill="none"
+                              viewBox="0 0 48 48"
+                              aria-hidden="true"
+                            >
+                              <path
+                                d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02"
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                          )}
+                          <div className="flex justify-center text-sm text-gray-600">
+                            <label
+                              htmlFor="file-upload"
+                              className="relative cursor-pointer bg-white rounded-md font-medium text-primary-600 hover:text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-primary-500"
+                            >
+                              <span>{file ? 'Change file' : 'Upload a file'}</span>
+                              <input
+                                id="file-upload"
+                                name="file-upload"
+                                type="file"
+                                className="sr-only"
+                                accept={values.contentType === 'video' ? 'video/*' : 'application/pdf'}
+                                onChange={(e) => handleFileChange(e, setFieldValue, values)}
+                              />
+                            </label>
+                          </div>
+                          <p className="text-xs text-gray-500">
+                            {values.contentType === 'video'
+                              ? 'MP4, WebM, or OGG up to 100MB'
+                              : 'PDF up to 20MB'}
+                          </p>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              <div className="flex justify-end space-x-4 pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate(`/instructor/courses/${courseId}/lessons`)}
-                >
-                  Cancel
-                </Button>
-                
-                <Button
-                  type="submit"
-                  variant="primary"
-                  isLoading={isSubmitting}
-                  disabled={isSubmitting || Object.keys(errors).length > 0}
-                >
-                  Create Lesson
-                </Button>
-              </div>
-            </Form>
-          )}
-        </Formik>
-      </Card>
-    </div>
+                      <ErrorMessage name="file" component="div" className="mt-1 text-sm text-red-600" />
+                      {values.contentType === 'pdf' && (
+                        <div className="mt-2">
+                          <FormInput
+                            id="pageCount"
+                            name="pageCount"
+                            type="number"
+                            label="Number of Pages"
+                            min={1}
+                            required
+                          />
+                          <ErrorMessage name="pageCount" component="div" className="mt-1 text-sm text-red-600" />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end space-x-4 pt-4">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate(`/instructor/courses/${courseId}/lessons`)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    isLoading={isSubmitting}
+                    disabled={isSubmitting || Object.keys(errors).length > 0}
+                  >
+                    Create Lesson
+                  </Button>
+                </div>
+              </Form>
+            )}
+          </Formik>
+        </Card>
+      </div>
+    </DndProvider>
   );
 };
 
