@@ -9,9 +9,9 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
   // Ensure advancedResults middleware is applied
   const results = res.advancedResults;
 
-  // Populate author field in the query
+  // Populate createdBy field in the query
   const query = Course.find()
-    .populate('author', 'firstName lastName profileImage')
+    .populate('createdBy', 'firstName lastName profileImage')
     .lean();
 
   // Apply advancedResults query modifications (e.g., pagination, filtering)
@@ -20,19 +20,19 @@ exports.getCourses = asyncHandler(async (req, res, next) => {
     .limit(results.limit)
     .sort(results.sort);
 
-  // Filter out courses with invalid authors
+  // Filter out courses with invalid createdBy
   const validCourses = courses.filter((course) => {
-    if (!course.author || !course.author.firstName) {
-      console.warn(`Course ${course._id} has no valid author`);
+    if (!course.createdBy || !course.createdBy.firstName) {
+      console.warn(`Course ${course._id} has no valid createdBy`);
       return false;
     }
     return true;
   });
-  
+
   res.status(200).json({
     success: true,
     count: validCourses.length,
-    total: results.total, // Preserve total from advancedResults
+    total: results.total,
     data: validCourses,
     pagination: results.pagination,
   });
@@ -45,7 +45,7 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
   console.log("Querying course ID:", req.params.id);
 
   const course = await Course.findById(req.params.id)
-    .populate('author', 'firstName lastName profileImage')
+    .populate('createdBy', 'firstName lastName profileImage')
     .populate('lessons')
     .populate('quizzes');
 
@@ -56,17 +56,15 @@ exports.getCourse = asyncHandler(async (req, res, next) => {
   }
 
   // Check permissions based on course status
-  // 1. Published courses are visible to everyone
-  // 2. Unpublished courses are only visible to their author, instructors, or admins
   if (!course.isPublished) {
     if (!req.user) {
       return next(new ErrorResponse(`Course not found`, 404));
     }
 
-    const authorId = course.author._id ? course.author._id.toString() : course.author.toString();
-    console.log("User:", req.user.id, "Author:", authorId, "Role:", req.user.role);
+    const createdById = course.createdBy._id ? course.createdBy._id.toString() : course.createdBy.toString();
+    console.log("User:", req.user.id, "CreatedBy:", createdById, "Role:", req.user.role);
 
-    if (req.user.role !== 'admin' && req.user.role !== 'instructor' && req.user.id !== authorId) {
+    if (req.user.role !== 'admin' && req.user.role !== 'instructor' && req.user.id !== createdById) {
       return next(new ErrorResponse(`Course not found`, 404));
     }
   }
@@ -102,7 +100,7 @@ exports.createCourse = asyncHandler(async (req, res, next) => {
     }
 
     // Add user to req.body
-    req.body.author = req.user.id;
+    req.body.createdBy = req.user.id; // Changed from author
 
     // Set initial states for new course
     req.body.isPublished = false;
@@ -136,7 +134,7 @@ exports.updateCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
   }
 
-  if (course.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (course.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
     return next(new ErrorResponse('Not authorized to update this course', 401));
   }
 
@@ -163,8 +161,8 @@ exports.submitCourseForApproval = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
   }
 
-  // Make sure user is course author
-  if (course.author.toString() !== req.user.id) {
+  // Make sure user is course creator
+  if (course.createdBy.toString() !== req.user.id) {
     return next(new ErrorResponse(`User ${req.user.id} is not authorized to update this course`, 401));
   }
 
@@ -208,8 +206,8 @@ exports.publishCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
   }
 
-  // Make sure user is course author or admin
-  if (course.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  // Make sure user is course creator or admin
+  if (course.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
     return next(new ErrorResponse(`User ${req.user.id} is not authorized to publish this course`, 401));
   }
 
@@ -243,8 +241,8 @@ exports.enrollCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Instructors and admins cannot enroll in courses', 403));
   }
 
-  // Check if course author is trying to enroll in their own course
-  if (course.author.toString() === req.user.id) {
+  // Check if course creator is trying to enroll in their own course
+  if (course.createdBy.toString() === req.user.id) {
     return next(new ErrorResponse('You cannot enroll in your own course', 403));
   }
 
@@ -280,7 +278,8 @@ exports.unenrollCourse = asyncHandler(async (req, res, next) => {
 // @route   GET /api/courses/enrolled
 // @access  Private
 exports.getEnrolledCourses = asyncHandler(async (req, res, next) => {
-  const courses = await Course.find({ enrolledUsers: req.user.id });
+  const courses = await Course.find({ enrolledUsers: req.user.id })
+    .populate('createdBy', 'firstName lastName profileImage');
 
   res.status(200).json({ success: true, data: courses });
 });
@@ -296,7 +295,7 @@ exports.uploadCourseImage = asyncHandler(async (req, res, next) => {
   }
 
   if (!req.file || !req.file.path) {
-    return next (new ErrorResponse('Image upload failed', 400));
+    return next(new ErrorResponse('Image upload failed', 400));
   }
 
   course.image = req.file.path;
@@ -315,7 +314,7 @@ exports.deleteCourse = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Course not found with id of ${req.params.id}`, 404));
   }
 
-  if (course.author.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (course.createdBy.toString() !== req.user.id && req.user.role !== 'admin') {
     return next(new ErrorResponse('Not authorized to delete this course', 401));
   }
 

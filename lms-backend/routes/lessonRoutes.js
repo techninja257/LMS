@@ -12,12 +12,25 @@ console.log('Imported lessonController in lessonRoutes:', {
   completeLesson: typeof completeLesson
 });
 
+// Log middleware
+console.log('Middleware:', {
+  authProtect: typeof auth.protect,
+  upload: typeof upload,
+  uploadSingle: typeof upload.single === 'function' ? 'function' : upload.single
+});
+
 // Course-specific lesson routes
-router.post('/courses/:courseId/lessons', auth, createLesson);
-router.get('/courses/:courseId/lessons', auth, getCourseLessons);
+console.log('Defining route: POST /courses/:courseId/lessons with handler:', typeof createLesson);
+router.post('/courses/:courseId/lessons', auth.protect, createLesson);
+
+console.log('Defining route: GET /courses/:courseId/lessons with handler:', typeof getCourseLessons);
+router.get('/courses/:courseId/lessons', auth.protect, getCourseLessons);
 
 // Lesson-specific routes
-router.post('/:lessonId/material', auth, upload.single('file'), uploadMaterial);
-router.patch('/:lessonId/complete', auth, completeLesson);
+console.log('Defining route: POST /:lessonId/material with handler:', typeof uploadMaterial);
+router.post('/:lessonId/material', auth.protect, upload.single('file'), uploadMaterial);
+
+console.log('Defining route: PATCH /:lessonId/complete with handler:', typeof completeLesson);
+router.patch('/:lessonId/complete', auth.protect, completeLesson);
 
 module.exports = router;

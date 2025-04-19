@@ -24,13 +24,12 @@ const router = express.Router();
 // Public routes
 router.route('/')
   .get(advancedResults(Course, [
-    { path: 'author', select: 'firstName lastName' }
+    { path: 'createdBy', select: 'firstName lastName' }
   ]), getCourses);
 
 // Single GET /:id route with optional auth
 router.route('/:id')
   .get((req, res, next) => {
-    // Apply auth middleware only if Authorization header is present
     if (req.headers.authorization) {
       return protect(req, res, next);
     }

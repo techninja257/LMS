@@ -18,10 +18,12 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
 // Import routes
+console.log('Loading routes...');
 const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const courseRoutes = require('./routes/courseRoutes');
 const lessonRoutes = require('./routes/lessonRoutes');
+console.log('Loaded lessonRoutes');
 const quizRoutes = require('./routes/quizRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const certificateRoutes = require('./routes/certificateRoutes');
