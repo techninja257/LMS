@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
-import { FaPlus, FaTrash, FaImage, FaInfoCircle } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaImage } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -22,7 +22,7 @@ const CreateCourse = () => {
     price: 0,
     isFree: false,
     isPremium: false,
-    isPublished: false,
+    isPublished: true, // Admins can publish directly
     thumbnail: null,
     language: 'English',
     duration: '',
@@ -135,8 +135,8 @@ const CreateCourse = () => {
       // Success message
       toast.success('Course created successfully!');
       
-      // Redirect to instructor courses
-      navigate('/instructor/courses');
+      // Redirect to admin courses
+      navigate('/admin/courses');
     } catch (err) {
       setError(err.message || 'Failed to create course. Please try again.');
       console.error('Error creating course:', err);
@@ -158,13 +158,13 @@ const CreateCourse = () => {
     <div className="container mx-auto px-4 py-8">
       <div className="flex items-center mb-6">
         <Link 
-          to="/instructor/dashboard"
+          to="/admin/courses"
           className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
         >
           <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to Dashboard
+          Back to Courses
         </Link>
         
         <h1 className="text-2xl font-bold text-gray-900">Create New Course</h1>
@@ -326,6 +326,18 @@ const CreateCourse = () => {
                       Premium Course
                     </label>
                   </div>
+                  
+                  <div className="flex items-center">
+                    <Field
+                      type="checkbox"
+                      name="isPublished"
+                      id="isPublished"
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="isPublished" className="ml-2 block text-sm text-gray-700">
+                      Published
+                    </label>
+                  </div>
                 </div>
                 
                 <div className="md:col-span-2">
@@ -467,13 +479,6 @@ const CreateCourse = () => {
             
             {/* Course Curriculum */}
             <Card title="Course Curriculum">
-              <div className="mb-4 flex items-center bg-blue-50 p-4 rounded-md">
-                <FaInfoCircle className="text-blue-500 mr-2" />
-                <p className="text-sm text-blue-700">
-                  Set up the basic structure of your course here. You'll be able to add detailed content for each lesson after creating the course.
-                </p>
-              </div>
-              
               <FieldArray name="modules">
                 {({ remove: removeModule, push: pushModule }) => (
                   <div className="space-y-6">
@@ -634,7 +639,7 @@ const CreateCourse = () => {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => navigate('/instructor/dashboard')}
+                onClick={() => navigate('/admin/courses')}
               >
                 Cancel
               </Button>

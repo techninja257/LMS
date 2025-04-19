@@ -1,4 +1,3 @@
-// src/pages/instructor/CreateLesson.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
@@ -52,6 +51,18 @@ const CreateLesson = () => {
       then: () => Yup.string().required('Content is required for this lesson type'),
       otherwise: () => Yup.string().nullable(),
     }),
+    file: Yup.mixed().when('contentType', {
+      is: (contentType) => ['video', 'pdf'].includes(contentType),
+      then: () => Yup.mixed()
+        .required('A file is required for this lesson type')
+        .test('fileType', 'Invalid file type', (value) => {
+          if (!value) return false;
+          if (value.type.startsWith('video/')) return true;
+          if (value.type === 'application/pdf' || value.name.endsWith('.pdf')) return true;
+          return false;
+        }),
+      otherwise: () => Yup.mixed().nullable(),
+    }),
     requiredTimeToComplete: Yup.number()
       .min(0, 'Duration cannot be negative')
       .required('Duration is required'),
@@ -64,14 +75,17 @@ const CreateLesson = () => {
   });
 
   // Handle file change
-  const handleFileChange = (e, setFieldValue) => {
+  const handleFileChange = (e, setFieldValue, contentType) => {
     const selectedFile = e.target.files[0];
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setFieldValue('file', null);
+      setFile(null);
+      setFilePreview(null);
+      return;
+    }
 
     // Validate file type based on content type
-    const contentType = document.getElementById('contentType').value;
     let isValidType = false;
-
     if (contentType === 'video' && selectedFile.type.startsWith('video/')) {
       isValidType = true;
     } else if (contentType === 'pdf' && (selectedFile.type === 'application/pdf' || selectedFile.name.endsWith('.pdf'))) {
@@ -80,21 +94,22 @@ const CreateLesson = () => {
 
     if (!isValidType) {
       toast.error(`Invalid file type for ${contentType} content`);
+      setFieldValue('file', null);
+      setFile(null);
+      setFilePreview(null);
       return;
     }
 
     setFile(selectedFile);
-    
-    // Create preview for PDF files
+    setFieldValue('file', selectedFile);
+
+    // Create preview
     if (contentType === 'pdf') {
       setFilePreview('/assets/images/pdf-icon.png');
-    } 
-    // Create preview for video files
-    else if (contentType === 'video') {
+    } else if (contentType === 'video') {
       const videoElement = document.createElement('video');
       videoElement.src = URL.createObjectURL(selectedFile);
       videoElement.onloadedmetadata = () => {
-        // Update duration field if it's a video
         const durationInMinutes = Math.ceil(videoElement.duration / 60);
         setFieldValue('requiredTimeToComplete', durationInMinutes);
       };
@@ -203,6 +218,7 @@ const CreateLesson = () => {
             description: '',
             contentType: 'text',
             content: '',
+            file: null,
             requiredTimeToComplete: 15,
             pageCount: 1,
             order: '',
@@ -221,7 +237,9 @@ const CreateLesson = () => {
                 order: values.order || undefined,
                 isPublished: false, // Hardcode to false for admin approval
               };
+              console.log('Submitting lessonData:', lessonData); // Debug log
               const lesson = await createLesson(courseId, lessonData);
+              console.log('Lesson created:', lesson); // Debug log
               if (file) {
                 const fileMetadata = {};
                 if (values.contentType === 'video') {
@@ -229,7 +247,9 @@ const CreateLesson = () => {
                 } else if (values.contentType === 'pdf') {
                   fileMetadata.pageCount = values.pageCount || 1;
                 }
+                console.log('Uploading file with metadata:', fileMetadata); // Debug log
                 await uploadLessonMaterial(lesson._id, file, fileMetadata);
+                console.log('File uploaded successfully'); // Debug log
               }
               toast.success('Lesson created successfully!');
               navigate(`/instructor/courses/${courseId}/lessons`);
@@ -240,9 +260,22 @@ const CreateLesson = () => {
               setSubmitting(false);
             }
           }}
+          validateOnMount
         >
           {({ values, setFieldValue, errors, touched, isSubmitting }) => (
             <Form className="space-y-6">
+              {/* Debug validation errors */}
+              {Object.keys(errors).length > 0 && (
+                <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+                  <strong>Form Errors:</strong>
+                  <ul className="list-disc pl-5">
+                    {Object.entries(errors).map(([field, error]) => (
+                      <li key={field}>{field}: {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
                   <FormInput
@@ -252,6 +285,7 @@ const CreateLesson = () => {
                     placeholder="Enter a descriptive title for your lesson"
                     required
                   />
+                  <ErrorMessage name="title" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div className="md:col-span-2">
@@ -263,6 +297,7 @@ const CreateLesson = () => {
                     rows={3}
                     required
                   />
+                  <ErrorMessage name="description" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div>
@@ -278,6 +313,7 @@ const CreateLesson = () => {
                     ]}
                     required
                   />
+                  <ErrorMessage name="contentType" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div>
@@ -289,6 +325,7 @@ const CreateLesson = () => {
                     min={1}
                     required
                   />
+                  <ErrorMessage name="requiredTimeToComplete" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 <div>
@@ -300,6 +337,7 @@ const CreateLesson = () => {
                     helpText="Leave blank for automatic ordering"
                     min={1}
                   />
+                  <ErrorMessage name="order" component="div" className="mt-1 text-sm text-red-600" />
                 </div>
                 
                 {/* Content based on contentType */}
@@ -313,13 +351,14 @@ const CreateLesson = () => {
                       rows={10}
                       required
                     />
+                    <ErrorMessage name="content" component="div" className="mt-1 text-sm text-red-600" />
                   </div>
                 )}
                 
                 {(values.contentType === 'video' || values.contentType === 'pdf') && (
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {values.contentType === 'video' ? 'Upload Video' : 'Upload PDF'}
+                      {values.contentType === 'video' ? 'Upload Video' : 'Upload PDF'} <span className="text-red-600">*</span>
                     </label>
                     <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
                       <div className="space-y-1 text-center">
@@ -342,7 +381,7 @@ const CreateLesson = () => {
                               type="file" 
                               className="sr-only" 
                               accept={values.contentType === 'video' ? 'video/*' : 'application/pdf'}
-                              onChange={(e) => handleFileChange(e, setFieldValue)}
+                              onChange={(e) => handleFileChange(e, setFieldValue, values.contentType)}
                             />
                           </label>
                         </div>
@@ -353,6 +392,7 @@ const CreateLesson = () => {
                         </p>
                       </div>
                     </div>
+                    <ErrorMessage name="file" component="div" className="mt-1 text-sm text-red-600" />
                     {values.contentType === 'pdf' && (
                       <div className="mt-2">
                         <FormInput
@@ -363,6 +403,7 @@ const CreateLesson = () => {
                           min={1}
                           required
                         />
+                        <ErrorMessage name="pageCount" component="div" className="mt-1 text-sm text-red-600" />
                       </div>
                     )}
                   </div>

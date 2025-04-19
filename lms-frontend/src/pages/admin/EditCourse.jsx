@@ -1,4 +1,3 @@
-// src/pages/admin/EditCourse.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
@@ -41,7 +40,6 @@ const EditCourse = () => {
       // Transform API data to form structure
       const formData = {
         title: courseData.title || '',
-        shortDescription: courseData.summary || courseData.shortDescription || '',
         description: courseData.description || '',
         category: courseData.category || '',
         level: courseData.level?.toLowerCase() || 'beginner',
@@ -110,56 +108,53 @@ const EditCourse = () => {
   }, [courseId]);
 
   const validationSchema = Yup.object({
-      title: Yup.string()
-        .required('Title is required')
-        .max(100, 'Title must be less than 100 characters'),
-      shortDescription: Yup.string()
-        .required('Short description is required')
-        .max(200, 'Short description must be less than 200 characters'),
-      description: Yup.string().required('Description is required'),
-      category: Yup.string().required('Category is required'),
-      level: Yup.string()
-        .required('Level is required')
-        .oneOf(['beginner', 'intermediate', 'advanced'], 'Invalid level'),
-      price: Yup.number()
-        .min(0, 'Price cannot be negative')
-        .when('isFree', {
-          is: (isFree) => isFree === true,
-          then: () => Yup.number().oneOf([0], 'Price must be 0 for free courses').required(),
-          otherwise: () => Yup.number().required('Price is required when not free'),
-        }),
-      isFree: Yup.boolean().required('Specify if the course is free'),
-      language: Yup.string().required('Language is required'),
-      duration: Yup.number()
-        .required('Duration is required')
-        .min(1, 'Duration must be at least 1 week')
-        .integer('Duration must be a whole number'),
-      prerequisites: Yup.array().of(
-        Yup.string().required('Prerequisite cannot be empty')
-      ),
-      learningObjectives: Yup.array().of(
-        Yup.string().required('Learning objective cannot be empty')
-      ),
-      modules: Yup.array()
-        .of(
-          Yup.object({
-            title: Yup.string().required('Module title is required'),
-            description: Yup.string(),
-            lessons: Yup.array()
-              .of(
-                Yup.object({
-                  title: Yup.string().required('Lesson title is required'),
-                  type: Yup.string().required('Lesson type is required'),
-                  content: Yup.string(),
-                  duration: Yup.number().min(0, 'Duration cannot be negative'),
-                  isPreview: Yup.boolean(),
-                })
-              )
-              .min(1, 'At least one lesson is required'),
-          })
-        )
-        .min(1, 'At least one module is required'),
-    });
+    title: Yup.string()
+      .required('Title is required')
+      .max(100, 'Title must be less than 100 characters'),
+    description: Yup.string().required('Description is required'),
+    category: Yup.string().required('Category is required'),
+    level: Yup.string()
+      .required('Level is required')
+      .oneOf(['beginner', 'intermediate', 'advanced'], 'Invalid level'),
+    price: Yup.number()
+      .min(0, 'Price cannot be negative')
+      .when('isFree', {
+        is: (isFree) => isFree === true,
+        then: () => Yup.number().oneOf([0], 'Price must be 0 for free courses').required(),
+        otherwise: () => Yup.number().required('Price is required when not free'),
+      }),
+    isFree: Yup.boolean().required('Specify if the course is free'),
+    language: Yup.string().required('Language is required'),
+    duration: Yup.number()
+      .required('Duration is required')
+      .min(1, 'Duration must be at least 1 week')
+      .integer('Duration must be a whole number'),
+    prerequisites: Yup.array().of(
+      Yup.string().required('Prerequisite cannot be empty')
+    ),
+    learningObjectives: Yup.array().of(
+      Yup.string().required('Learning objective cannot be empty')
+    ),
+    modules: Yup.array()
+      .of(
+        Yup.object({
+          title: Yup.string().required('Module title is required'),
+          description: Yup.string(),
+          lessons: Yup.array()
+            .of(
+              Yup.object({
+                title: Yup.string().required('Lesson title is required'),
+                type: Yup.string().required('Lesson type is required'),
+                content: Yup.string(),
+                duration: Yup.number().min(0, 'Duration cannot be negative'),
+                isPreview: Yup.boolean(),
+              })
+            )
+            .min(1, 'At least one lesson is required'),
+        })
+      )
+      .min(1, 'At least one module is required'),
+  });
 
   const handleThumbnailChange = (event, setFieldValue) => {
     const file = event.currentTarget.files[0];
@@ -368,21 +363,7 @@ const EditCourse = () => {
                   
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Short Description *
-                    </label>
-                    <Field
-                      as="textarea"
-                      name="shortDescription"
-                      rows="2"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                      placeholder="A brief description that appears in course cards (max 200 characters)"
-                    />
-                    <ErrorMessage name="shortDescription" component="div" className="mt-1 text-sm text-red-600" />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Description *
+                      About this Course *
                     </label>
                     <Field
                       as="textarea"

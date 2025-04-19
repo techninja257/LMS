@@ -33,11 +33,12 @@ import ManageCourses from './pages/admin/ManageCourses';
 import CourseApprovals from './pages/admin/CourseApprovals';
 import UserCreate from './pages/admin/UserCreate';
 import EditCourse from './pages/admin/EditCourse';
+import CreateCourse from './pages/admin/CreateCourse';
 
 // Instructor Pages
 import InstructorDashboard from './pages/instructor/Dashboard';
 import InstructorCourses from './pages/instructor/InstructorCourses';
-import CreateCourse from './pages/instructor/CreateCourse';
+import InstructorCreateCourse from './pages/instructor/CreateCourse';
 import InstructorEditCourse from './pages/instructor/EditCourse';
 import ManageLessons from './pages/instructor/ManageLessons';
 import CreateLesson from './pages/instructor/CreateLesson';
@@ -94,13 +95,14 @@ function App() {
             <Route path="/admin/users" element={<AdminRoute><ManageUsers /></AdminRoute>} />
             <Route path="/admin/users/create" element={<AdminRoute><UserCreate /></AdminRoute>} />
             <Route path="/admin/courses" element={<AdminRoute><ManageCourses /></AdminRoute>} />
+            <Route path="/admin/courses/create" element={<AdminRoute><CreateCourse /></AdminRoute>} />
             <Route path="/admin/courses/:courseId/edit" element={<AdminRoute><EditCourse /></AdminRoute>} />
             <Route path="/admin/course-approvals" element={<AdminRoute><CourseApprovals /></AdminRoute>} />
 
             {/* Instructor Routes */}
             <Route path="/instructor/dashboard" element={<InstructorRoute><InstructorDashboard /></InstructorRoute>} />
             <Route path="/instructor/courses" element={<InstructorRoute><InstructorCourses /></InstructorRoute>} />
-            <Route path="/instructor/courses/create" element={<InstructorRoute><CreateCourse /></InstructorRoute>} />
+            <Route path="/instructor/courses/create" element={<InstructorRoute><InstructorCreateCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/edit" element={<InstructorRoute><InstructorEditCourse /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons" element={<InstructorRoute><ManageLessons /></InstructorRoute>} />
             <Route path="/instructor/courses/:courseId/lessons/create" element={<InstructorRoute><CreateLesson /></InstructorRoute>} />

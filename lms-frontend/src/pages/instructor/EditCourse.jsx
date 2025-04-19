@@ -1,4 +1,3 @@
-// src/pages/instructor/EditCourse.jsx
 import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
@@ -40,7 +39,6 @@ const EditCourse = () => {
       // Transform API data to form structure
       const formData = {
         title: courseData.title || '',
-        shortDescription: courseData.summary || courseData.shortDescription || '',
         description: courseData.description || '',
         category: courseData.category || '',
         level: courseData.level?.toLowerCase() || 'beginner',
@@ -111,9 +109,6 @@ const EditCourse = () => {
     title: Yup.string()
       .required('Title is required')
       .max(100, 'Title must be less than 100 characters'),
-    shortDescription: Yup.string()
-      .required('Short description is required')
-      .max(200, 'Short description must be less than 200 characters'),
     description: Yup.string().required('Description is required'),
     category: Yup.string().required('Category is required'),
     level: Yup.string()
@@ -158,6 +153,7 @@ const EditCourse = () => {
       )
       .min(1, 'At least one module is required'),
   });
+
   const handleThumbnailChange = (event, setFieldValue) => {
     const file = event.currentTarget.files[0];
     if (file) {
@@ -311,12 +307,12 @@ const EditCourse = () => {
         <Link 
           to="/instructor/courses"
           className="inline-flex items-center text-primary-600 hover:text-primary-700 mr-4"
-        >
-          <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Back to Courses
-        </Link>
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Courses
+          </Link>
         
         <h1 className="text-2xl font-bold text-gray-900">Edit Course</h1>
       </div>
@@ -354,21 +350,7 @@ const EditCourse = () => {
                   
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Short Description *
-                    </label>
-                    <Field
-                      as="textarea"
-                      name="shortDescription"
-                      rows="2"
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
-                      placeholder="A brief description that appears in course cards (max 200 characters)"
-                    />
-                    <ErrorMessage name="shortDescription" component="div" className="mt-1 text-sm text-red-600" />
-                  </div>
-                  
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Full Description *
+                      About this Course *
                     </label>
                     <Field
                       as="textarea"
