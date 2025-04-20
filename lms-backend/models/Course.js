@@ -17,7 +17,8 @@ const courseSchema = new mongoose.Schema({
     order: { type: Number },
     lessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }]
   }],
-  lessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }] // For backward compatibility
+  lessons: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Lesson' }], // For backward compatibility
+  quizzes: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Quiz' }] // Added to reference Quiz model
 });
 
 module.exports = mongoose.model('Course', courseSchema);
