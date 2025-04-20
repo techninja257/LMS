@@ -11,7 +11,8 @@ const {
   getEnrolledCourses,
   approveCourse,
   submitCourseForApproval,
-  publishCourse
+  publishCourse,
+  rejectCourse
 } = require('../controllers/courseController');
 
 const advancedResults = require('../middleware/advancedResults');
@@ -64,6 +65,10 @@ router.route('/:id/submit')
 // Approve course (admin only)
 router.route('/:id/approve')
   .put(authorize('admin'), approveCourse);
+
+// Reject course (admin only)
+router.route('/:id/reject')
+  .put(authorize('admin'), rejectCourse);
 
 // Publish course
 router.route('/:id/publish')

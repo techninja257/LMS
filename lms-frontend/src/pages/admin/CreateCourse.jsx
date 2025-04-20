@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
-import { FaPlus, FaTrash, FaImage, FaInfoCircle } from 'react-icons/fa'; // Added FaInfoCircle
+import { FaPlus, FaTrash, FaImage, FaInfoCircle } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -50,10 +50,11 @@ const CreateCourse = () => {
       .oneOf(['beginner', 'intermediate', 'advanced'], 'Invalid level'),
     price: Yup.number()
       .min(0, 'Price cannot be negative')
-      .when('isFree', {
-        is: true,
-        then: Yup.number().oneOf([0], 'Price must be 0 for free courses')
-      }),
+      .when('isFree', (isFree, schema) =>
+        isFree
+          ? schema.oneOf([0], 'Price must be 0 for free courses')
+          : schema
+      ),
     language: Yup.string().required('Language is required'),
     duration: Yup.number()
       .required('Duration is required')
@@ -533,7 +534,7 @@ const CreateCourse = () => {
                         order: values.modules.length + 1
                       })}
                     >
-                      <FaPlus className="mr-2 h-4 w-4" />
+                      <FaPlus className="чистый h-4 w-4" />
                       Add Module
                     </button>
                   </div>
