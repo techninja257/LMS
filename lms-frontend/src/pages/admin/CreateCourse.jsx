@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Formik, Form, Field, ErrorMessage, FieldArray } from 'formik';
 import * as Yup from 'yup';
-import { FaPlus, FaTrash, FaImage } from 'react-icons/fa';
+import { FaPlus, FaTrash, FaImage, FaInfoCircle } from 'react-icons/fa'; // Added FaInfoCircle
 import { toast } from 'react-toastify';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -13,7 +13,7 @@ const CreateCourse = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [thumbnailPreview, setThumbnailPreview] = useState(null);
-  
+
   const initialValues = {
     title: '',
     description: '',
@@ -22,7 +22,7 @@ const CreateCourse = () => {
     price: 0,
     isFree: false,
     isPremium: false,
-    isPublished: true, // Admins can publish directly
+    isPublished: true,
     thumbnail: null,
     language: 'English',
     duration: '',
@@ -32,15 +32,7 @@ const CreateCourse = () => {
       {
         title: '',
         description: '',
-        lessons: [
-          {
-            title: '',
-            type: 'video',
-            content: '',
-            duration: 0,
-            isPreview: false
-          }
-        ]
+        order: 1
       }
     ]
   };
@@ -72,12 +64,7 @@ const CreateCourse = () => {
     modules: Yup.array().of(
       Yup.object({
         title: Yup.string().required('Module title is required'),
-        lessons: Yup.array().of(
-          Yup.object({
-            title: Yup.string().required('Lesson title is required'),
-            type: Yup.string().required('Lesson type is required')
-          })
-        ).min(1, 'At least one lesson is required')
+        order: Yup.number().min(1, 'Order must be at least 1').required('Order is required')
       })
     ).min(1, 'At least one module is required')
   });
@@ -86,8 +73,6 @@ const CreateCourse = () => {
     const file = event.currentTarget.files[0];
     if (file) {
       setFieldValue('thumbnail', file);
-      
-      // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setThumbnailPreview(reader.result);
@@ -99,43 +84,31 @@ const CreateCourse = () => {
   const handleSubmit = async (values) => {
     setIsSubmitting(true);
     setError('');
-    
+
     try {
-      // Create FormData for file upload
       const formData = new FormData();
-      
-      // Log values for debugging
       console.log('Form values:', values);
-      
-      // Add all text fields
+
       Object.keys(values).forEach(key => {
         if (key !== 'thumbnail' && key !== 'modules' && key !== 'prerequisites' && key !== 'learningObjectives') {
           formData.append(key, values[key]);
         }
       });
-      
-      // Add arrays as JSON strings
+
       formData.append('modules', JSON.stringify(values.modules));
       formData.append('prerequisites', JSON.stringify(values.prerequisites));
       formData.append('learningObjectives', JSON.stringify(values.learningObjectives));
-      
-      // Add thumbnail if exists
+
       if (values.thumbnail) {
         formData.append('thumbnail', values.thumbnail);
       }
-      
-      // Log FormData entries for debugging
+
       for (let [key, value] of formData.entries()) {
         console.log(`FormData: ${key} = ${value}`);
       }
-      
-      // Call API to create course
+
       const response = await createCourse(formData);
-      
-      // Success message
       toast.success('Course created successfully!');
-      
-      // Redirect to admin courses
       navigate('/admin/courses');
     } catch (err) {
       setError(err.message || 'Failed to create course. Please try again.');
@@ -183,7 +156,6 @@ const CreateCourse = () => {
       >
         {({ values, errors, touched, isValid, dirty, setFieldValue }) => (
           <Form className="space-y-8">
-            {/* Basic Information */}
             <Card title="Basic Information">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="md:col-span-2">
@@ -382,7 +354,6 @@ const CreateCourse = () => {
               </div>
             </Card>
             
-            {/* Prerequisites & Learning Objectives */}
             <Card title="Prerequisites & Learning Objectives">
               <div className="space-y-6">
                 <div>
@@ -477,8 +448,14 @@ const CreateCourse = () => {
               </div>
             </Card>
             
-            {/* Course Curriculum */}
             <Card title="Course Curriculum">
+              <div className="mb-4 flex items-center bg-blue-50 p-4 rounded-md">
+                <FaInfoCircle className="text-blue-500 mr-2" />
+                <p className="text-sm text-blue-700">
+                  Set up the basic structure of your course here. You'll be able to add lessons and detailed content after creating the course.
+                </p>
+              </div>
+              
               <FieldArray name="modules">
                 {({ remove: removeModule, push: pushModule }) => (
                   <div className="space-y-6">
@@ -526,93 +503,23 @@ const CreateCourse = () => {
                               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
                             />
                           </div>
-                        </div>
-                        
-                        <div className="mb-4">
-                          <h4 className="text-md font-medium mb-2">Lessons</h4>
-                          <FieldArray name={`modules.${moduleIndex}.lessons`}>
-                            {({ remove: removeLesson, push: pushLesson }) => (
-                              <div className="space-y-4">
-                                {module.lessons.map((lesson, lessonIndex) => (
-                                  <div key={lessonIndex} className="bg-gray-50 p-3 rounded-md">
-                                    <div className="flex justify-between items-center mb-3">
-                                      <h5 className="text-sm font-medium">Lesson {lessonIndex + 1}</h5>
-                                      <button
-                                        type="button"
-                                        className="inline-flex items-center p-1 border border-transparent rounded-full text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                                        onClick={() => removeLesson(lessonIndex)}
-                                        disabled={module.lessons.length === 1}
-                                      >
-                                        <FaTrash className="h-3 w-3" />
-                                      </button>
-                                    </div>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                                      <div className="md:col-span-3">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                          Lesson Title *
-                                        </label>
-                                        <Field
-                                          name={`modules.${moduleIndex}.lessons.${lessonIndex}.title`}
-                                          type="text"
-                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                                        />
-                                        <ErrorMessage
-                                          name={`modules.${moduleIndex}.lessons.${lessonIndex}.title`}
-                                          component="div"
-                                          className="mt-1 text-xs text-red-600"
-                                        />
-                                      </div>
-                                      
-                                      <div className="md:col-span-2">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                          Type *
-                                        </label>
-                                        <Field
-                                          as="select"
-                                          name={`modules.${moduleIndex}.lessons.${lessonIndex}.type`}
-                                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500 text-sm"
-                                        >
-                                          <option value="video">Video</option>
-                                          <option value="text">Text</option>
-                                          <option value="quiz">Quiz</option>
-                                          <option value="assignment">Assignment</option>
-                                        </Field>
-                                      </div>
-                                      
-                                      <div className="md:col-span-1">
-                                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                                          Preview?
-                                        </label>
-                                        <div className="mt-2 h-5 flex items-center">
-                                          <Field
-                                            type="checkbox"
-                                            name={`modules.${moduleIndex}.lessons.${lessonIndex}.isPreview`}
-                                            className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                                
-                                <button
-                                  type="button"
-                                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs leading-4 font-medium rounded-md text-primary-700 bg-primary-100 hover:bg-primary-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                                  onClick={() => pushLesson({
-                                    title: '',
-                                    type: 'video',
-                                    content: '',
-                                    duration: 0,
-                                    isPreview: false
-                                  })}
-                                >
-                                  <FaPlus className="mr-1 h-3 w-3" />
-                                  Add Lesson
-                                </button>
-                              </div>
-                            )}
-                          </FieldArray>
+                          
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Order *
+                            </label>
+                            <Field
+                              name={`modules.${moduleIndex}.order`}
+                              type="number"
+                              min="1"
+                              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary-500 focus:ring-primary-500"
+                            />
+                            <ErrorMessage
+                              name={`modules.${moduleIndex}.order`}
+                              component="div"
+                              className="mt-1 text-sm text-red-600"
+                            />
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -623,7 +530,7 @@ const CreateCourse = () => {
                       onClick={() => pushModule({
                         title: '',
                         description: '',
-                        lessons: [{ title: '', type: 'video', content: '', duration: 0, isPreview: false }]
+                        order: values.modules.length + 1
                       })}
                     >
                       <FaPlus className="mr-2 h-4 w-4" />
@@ -634,7 +541,6 @@ const CreateCourse = () => {
               </FieldArray>
             </Card>
             
-            {/* Submission Buttons */}
             <div className="flex justify-end space-x-4">
               <Button
                 type="button"
